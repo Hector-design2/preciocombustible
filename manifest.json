@@ -1,0 +1,1 @@
+{ "name": "PreciosCombustibleES", "supportEmail": "soporte@tuempresa.com", "version": "1.0.0", "items": [ { "page": "fuel-prices/index.html", "title": { "en": "Fuel prices Spain", "es": "Precios combustible España" }, "menuName": { "en": "Fuel prices", "es": "Precios combustible" }, "icon": "fuel-prices/icon.png", "path": "Marketplace", "order": 10 } ] }

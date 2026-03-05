@@ -1,0 +1,67 @@
+:root {
+  --header-bg: #ffffff;
+  --border: #e6e6e6;
+  --accent: #0073e6;
+  --muted: #666;
+  --font: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; font-family: var(--font); color: #222; }
+#app { display: flex; flex-direction: column; height: 100vh; }
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--header-bg);
+}
+
+header h1 { margin: 0; font-size: 16px; font-weight: 600; }
+.controls { display: flex; gap: 10px; align-items: center; }
+
+.controls select, .controls input, .controls button {
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+main { display: flex; flex: 1; overflow: hidden; }
+
+#mapSection { flex: 2; min-width: 0; }
+#map { width: 100%; height: 100%; }
+
+#tableSection {
+  flex: 1.4;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-width: 320px;
+  background: #fafafa;
+}
+
+.table-controls {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+}
+
+.table-controls input { flex: 1; padding: 6px 8px; font-size: 13px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  text-align: left;
+  padding: 8px;
+  background: #f5f5f5;
+  position: sticky;
+  top: 0;
+  border-bottom: 1px solid var(--border);
+}
+tbody td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: middle; }
+tbody tr:hover { background: #fffef6; }
+
+button { cursor: pointer; border: 1px solid var(--border); background: white; color: #222; }
+button.primary { background: var(--accent); color: white; border-color: var(--accent); }
