@@ -24,36 +24,165 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gasolineras España</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <link rel="stylesheet" href="app.css"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: sans-serif; font-size: 13px; background: #f8fafc; display: flex; flex-direction: column; height: 100vh; }
+        #toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #1e293b; flex-wrap: wrap; }
+        .btn { padding: 6px 14px; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: 600; background: #334155; color: #e2e8f0; }
+        .btn:hover:not(:disabled) { background: #475569; }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-primary { background: #0ea5e9; color: #fff; }
+        #status { color: #94a3b8; font-size: 12px; flex: 1; }
+        #legend { display: flex; gap: 12px; padding: 5px 14px; background: #fff; border-bottom: 1px solid #e2e8f0; font-size: 11px; flex-wrap: wrap; }
+        #map { flex: 1; }
+        .gs-marker { color: #fff; font-size: 11px; font-weight: 700; padding: 3px 6px; border-radius: 4px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.35); cursor: pointer; }
+        .gs-popup { min-width: 200px; font-size: 13px; }
+        .gs-popup b { font-size: 14px; display: block; margin-bottom: 4px; }
+        .gs-popup table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+        .gs-popup td { padding: 3px 4px; font-size: 12px; border-bottom: 1px solid #f1f5f9; }
+        .gs-popup .pv { font-weight: 700; color: #0ea5e9; text-align: right; }
+        #cors-warn { display: none; margin: 10px; padding: 10px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; font-size: 12px; }
+    </style>
 </head>
 <body>
-    <div id="gasolineras-container">
-        <p style="padding:20px;color:#64748b;">Cargando mapa de gasolineras...</p>
-    </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="app.js"></script>
-    <script>
-        // Arranca el Add-In directamente sin esperar a Geotab
-        window.addEventListener("DOMContentLoaded", function () {
+<div id="toolbar">
+    <button class="btn btn-primary" id="btnGas">⛽ Cargar Gasolineras</button>
+    <button class="btn" id="btnRefresh" disabled>🗺️ Refrescar vista</button>
+    <span id="status">Listo. Pulsa "Cargar Gasolineras"</span>
+</div>
 
-            // API mock: si no hay Geotab real, los vehículos no cargan
-            // pero el mapa y gasolineras sí funcionan
-            var mockApi = {
-                call: function (method, params, success, error) {
-                    if (error) error({ message: "API Geotab no disponible en modo iframe" });
-                }
-            };
+<div id="legend">
+    <span style="color:#16a34a">● &lt;1.38€</span>
+    <span style="color:#65a30d">● 1.38-1.48€</span>
+    <span style="color:#d97706">● 1.48-1.55€</span>
+    <span style="color:#ea580c">● 1.55-1.65€</span>
+    <span style="color:#dc2626">● &gt;1.65€</span>
+    <small>— Gasóleo A · Fuente: MITECO</small>
+</div>
 
-            // Intenta usar la API real de Geotab si está disponible
-            var realApi = (window.geotab && window.geotab.api) ? window.geotab.api : mockApi;
+<div id="map"></div>
+<div id="cors-warn">⚠️ Error CORS: asegúrate de que el proxy en Render está activo. URL: <code>https://proxy-gasolineras.onrender.com/gasolineras</code></div>
 
-            // Inicializa el Add-In
-            var addin = geotab.addin.gasolinerasEspana();
-            addin.initialize(realApi, {}, function () {
-                addin.focus(realApi, {});
-            });
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    var PROXY_URL = "https://proxy-gasolineras.onrender.com/gasolineras";
+    var allStations = null;
+    var stationMarkers = [];
+
+    // Iniciar mapa
+    var map = L.map("map").setView([40.4168, -3.7038], 6);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap | Precios: MITECO",
+        maxZoom: 18
+    }).addTo(map);
+
+    map.on("moveend", function() {
+        if (allStations) mostrarEnVista();
+    });
+
+    function parseES(s) {
+        if (!s || s.trim() === "") return NaN;
+        return parseFloat(s.replace(",", "."));
+    }
+
+    function formatP(v) {
+        return isNaN(v) ? "-" : v.toFixed(3) + " €/L";
+    }
+
+    function color(d) {
+        if (isNaN(d)) return "#94a3b8";
+        if (d <= 1.38) return "#16a34a";
+        if (d <= 1.48) return "#65a30d";
+        if (d <= 1.55) return "#d97706";
+        if (d <= 1.65) return "#ea580c";
+        return "#dc2626";
+    }
+
+    function mostrarEnVista() {
+        stationMarkers.forEach(function(m) { map.removeLayer(m); });
+        stationMarkers = [];
+
+        var b = map.getBounds();
+        var MAX = 300;
+        var filtradas = [];
+
+        allStations.forEach(function(s) {
+            var lat = parseES(s["Latitud"]);
+            var lon = parseES(s["Longitud (WGS84)"]);
+            if (isNaN(lat) || isNaN(lon)) return;
+            if (!b.contains([lat, lon])) return;
+            s._lat = lat; s._lon = lon;
+            s._d = parseES(s["Precio Gasoleo A"]);
+            s._g95 = parseES(s["Precio Gasolina 95 E5"]);
+            s._g98 = parseES(s["Precio Gasolina 98 E5"]);
+            filtradas.push(s);
         });
-    </script>
+
+        filtradas.sort(function(a, b) {
+            if (isNaN(a._d) && isNaN(b._d)) return 0;
+            if (isNaN(a._d)) return 1;
+            if (isNaN(b._d)) return -1;
+            return a._d - b._d;
+        });
+
+        filtradas.slice(0, MAX).forEach(function(s) {
+            var c = color(s._d);
+            var label = isNaN(s._d) ? "?" : s._d.toFixed(3) + "€";
+            var icon = L.divIcon({
+                className: "",
+                html: "<div class='gs-marker' style='background:" + c + "'>" + label + "</div>",
+                iconSize: [68, 22], iconAnchor: [34, 11], popupAnchor: [0, -14]
+            });
+            var popup = "<div class='gs-popup'><b>⛽ " + (s["Rótulo"] || "Gasolinera") + "</b>" +
+                "<small>" + (s["Dirección"] || "") + ", " + (s["Municipio"] || "") + "</small>" +
+                "<table>" +
+                (isNaN(s._d) ? "" : "<tr><td>🔵 Gasóleo A</td><td class='pv'>" + formatP(s._d) + "</td></tr>") +
+                (isNaN(s._g95) ? "" : "<tr><td>🟢 Gasolina 95</td><td class='pv'>" + formatP(s._g95) + "</td></tr>") +
+                (isNaN(s._g98) ? "" : "<tr><td>🟡 Gasolina 98</td><td class='pv'>" + formatP(s._g98) + "</td></tr>") +
+                "</table>" +
+                "<small>🕐 " + (s["Horario"] || "") + "</small></div>";
+            var m = L.marker([s._lat, s._lon], { icon: icon }).bindPopup(popup);
+            m.addTo(map);
+            stationMarkers.push(m);
+        });
+
+        document.getElementById("status").textContent =
+            "⛽ " + stationMarkers.length + " gasolineras en vista (de " + filtradas.length + " en área)";
+    }
+
+    document.getElementById("btnGas").addEventListener("click", function() {
+        if (allStations) { mostrarEnVista(); return; }
+        var btn = document.getElementById("btnGas");
+        btn.disabled = true;
+        document.getElementById("status").textContent = "⏳ Descargando datos del Ministerio...";
+
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", PROXY_URL, true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== 4) return;
+            btn.disabled = false;
+            if (xhr.status === 200) {
+                var data = JSON.parse(xhr.responseText);
+                allStations = data.ListaEESSPrecio || [];
+                document.getElementById("btnRefresh").disabled = false;
+                mostrarEnVista();
+            } else {
+                document.getElementById("status").textContent = "❌ Error: " + xhr.status;
+                document.getElementById("cors-warn").style.display = "block";
+            }
+        };
+        xhr.onerror = function() {
+            btn.disabled = false;
+            document.getElementById("status").textContent = "❌ Error de red";
+            document.getElementById("cors-warn").style.display = "block";
+        };
+        xhr.send();
+    });
+
+    document.getElementById("btnRefresh").addEventListener("click", function() {
+        if (allStations) mostrarEnVista();
+    });
+</script>
 </body>
 </html>
