@@ -1,19 +1,59 @@
+<!-- <!DOCTYPE html> -->
+<!-- <html lang="es"> -->
+<!-- <head> -->
+    <!-- <meta charset="UTF-8"> -->
+    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"> -->
+    <!-- <title>Gasolineras España</title> -->
+    <!-- El CSS se inyecta por Geotab vía config.json -->
+<!-- </head> -->
+<!-- <body> -->
+    <!--
+        Este es el contenedor raíz del Add-In.
+        app.js llena este div con el mapa, toolbar y controles.
+        Geotab inyecta app.js y app.css desde las URLs del config.json.
+    -->
+    <!-- <div id="gasolineras-container"> -->
+        <!-- <p style="padding:20px;color:#64748b;">Cargando mapa de gasolineras...</p> -->
+    <!-- </div> -->
+<!-- </body> -->
+<!-- </html> -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gasolineras España</title>
-    <!-- El CSS se inyecta por Geotab vía config.json -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="app.css"/>
 </head>
 <body>
-    <!--
-        Este es el contenedor raíz del Add-In.
-        app.js llena este div con el mapa, toolbar y controles.
-        Geotab inyecta app.js y app.css desde las URLs del config.json.
-    -->
     <div id="gasolineras-container">
         <p style="padding:20px;color:#64748b;">Cargando mapa de gasolineras...</p>
     </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="app.js"></script>
+    <script>
+        // Arranca el Add-In directamente sin esperar a Geotab
+        window.addEventListener("DOMContentLoaded", function () {
+
+            // API mock: si no hay Geotab real, los vehículos no cargan
+            // pero el mapa y gasolineras sí funcionan
+            var mockApi = {
+                call: function (method, params, success, error) {
+                    if (error) error({ message: "API Geotab no disponible en modo iframe" });
+                }
+            };
+
+            // Intenta usar la API real de Geotab si está disponible
+            var realApi = (window.geotab && window.geotab.api) ? window.geotab.api : mockApi;
+
+            // Inicializa el Add-In
+            var addin = geotab.addin.gasolinerasEspana();
+            addin.initialize(realApi, {}, function () {
+                addin.focus(realApi, {});
+            });
+        });
+    </script>
 </body>
 </html>
