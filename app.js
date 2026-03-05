@@ -14,7 +14,7 @@ geotab.addin.gasolinerasEspana = function () {
     var allStations = null;
     var isLoadingStations = false;
 
-    var MINETUR_URL = "https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/";
+    var MINETUR_URL = "https://proxy-gasolineras.onrender.com/gasolineras";
 
     // ---------- Utilidades ----------
 
