@@ -11,15 +11,15 @@
       "menuId": "GasolinerasEspana",
       "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMGVhNWU5IiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik0zIDEyaDN2N2gxMnYtN2gzTDEyIDNaIi8+PHBhdGggZD0iTTkgMTloMy0zWk0xNSAxOWgtMyIvPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjIiLz48L3N2Zz4=",
       "version": "1.0.0",
-      "html": "https://hector-design2.github.io/preciocombustible/",
+      "html": "https://TU-SERVIDOR/gasolineras/index.html",
       "dist": [
         {
-          "url": "https://hector-design2.github.io/preciocombustible/app.js"
+          "url": "https://TU-SERVIDOR/gasolineras/app.js"
         }
       ],
       "css": [
         {
-          "url": "https://hector-design2.github.io/preciocombustible/app.css"
+          "url": "https://TU-SERVIDOR/gasolineras/app.css"
         }
       ],
       "translations": {
