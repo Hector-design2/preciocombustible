@@ -1,0 +1,35 @@
+{
+  "name": "Gasolineras España",
+  "supportEmail": "tu-email@empresa.com",
+  "version": "1.0.0",
+  "items": [
+    {
+      "page": "customPage",
+      "title": "Gasolineras España",
+      "noView": false,
+      "path": "GasolinerasEspana/",
+      "menuId": "GasolinerasEspana",
+      "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMGVhNWU5IiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik0zIDEyaDN2N2gxMnYtN2gzTDEyIDNaIi8+PHBhdGggZD0iTTkgMTloMy0zWk0xNSAxOWgtMyIvPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjIiLz48L3N2Zz4=",
+      "version": "1.0.0",
+      "html": "https://TU-SERVIDOR/gasolineras/index.html",
+      "dist": [
+        {
+          "url": "https://TU-SERVIDOR/gasolineras/app.js"
+        }
+      ],
+      "css": [
+        {
+          "url": "https://TU-SERVIDOR/gasolineras/app.css"
+        }
+      ],
+      "translations": {
+        "es": {
+          "name": "Gasolineras España"
+        },
+        "en": {
+          "name": "Spain Gas Stations"
+        }
+      }
+    }
+  ]
+}
