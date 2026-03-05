@@ -1,0 +1,13 @@
+{
+  "name": "proxy-gasolineras",
+  "version": "1.0.0",
+  "main": "proxy-gasolineras.js",
+  "scripts": {
+    "start": "node proxy-gasolineras.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "node-fetch": "^2.7.0"
+  }
+}
