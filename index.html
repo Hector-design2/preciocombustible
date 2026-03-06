@@ -509,7 +509,13 @@ document.getElementById("btn-login").addEventListener("click", function () {
     document.getElementById("login-error").style.display = "none";
 
     autenticar(server, db, user, pass, function (result) {
-        geotabCredentials = { server: server, db: db, user: user, pass: pass };
+        geotabCredentials = {
+    server: server,
+    db: db,
+    user: user,
+    pass: pass,
+    sessionId: result.credentials.sessionId
+};
         document.getElementById("panel-login").style.display = "none";
         document.getElementById("btn-login").textContent = "Conectar y cargar vehículos";
         document.getElementById("btn-login").disabled = false;
