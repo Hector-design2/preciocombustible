@@ -355,6 +355,11 @@ var vehicleMarkers = [];
 var geotabCredentials = null; // { server, db, user, pass, token }
 
 // ── MAPA ─────────────────────────────────────────────────
+var mapContainer = document.getElementById("map");
+if (mapContainer._leaflet_id) {
+    mapContainer._leaflet_id = null;
+    mapContainer.innerHTML = "";
+}
 var map = L.map("map").setView([40.4168, -3.7038], 6);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "© OpenStreetMap | Precios: MITECO", maxZoom: 18
