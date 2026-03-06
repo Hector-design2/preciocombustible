@@ -1,28 +1,28 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:"Segoe UI",sans-serif; font-size:13px; }
-#gs-bar { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#1e293b; flex-wrap:wrap; }
-#gs-leg { display:flex; gap:10px; padding:3px 12px; background:#fff; border-bottom:1px solid #e2e8f0; font-size:11px; flex-wrap:wrap; }
-#gs-map { width:100%; height:calc(100vh - 58px); }
-.gb { padding:5px 12px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600; background:#334155; color:#e2e8f0; }
-.gb:hover:not(:disabled){background:#475569;} .gb:disabled{opacity:.4;cursor:not-allowed;}
-.gg{background:#16a34a;color:#fff;} .gg:hover:not(:disabled){background:#15803d;}
-.gb2{background:#0ea5e9;color:#fff;} .gb2:hover:not(:disabled){background:#0284c7;}
-#gs-st{color:#94a3b8;font-size:11px;flex:1;}
-.gsm{color:#fff;font-size:11px;font-weight:700;padding:3px 5px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 5px rgba(0,0,0,.3);}
-.gsp{min-width:190px;font-size:13px;}
-.gsp b{display:block;font-size:14px;margin-bottom:3px;color:#1e293b;}
-.gsp small{display:block;color:#64748b;font-size:11px;margin-bottom:4px;}
-.gsp table{width:100%;border-collapse:collapse;}
-.gsp td{padding:3px 4px;font-size:12px;border-bottom:1px solid #f1f5f9;}
-.gsp .pv{font-weight:700;color:#0ea5e9;text-align:right;}
-@keyframes gsp{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
-</style>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:"Segoe UI",sans-serif; font-size:13px; }
+        #gs-bar { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#1e293b; flex-wrap:wrap; }
+        #gs-leg { display:flex; gap:10px; padding:3px 12px; background:#fff; border-bottom:1px solid #e2e8f0; font-size:11px; flex-wrap:wrap; }
+        #gs-map { width:100%; height:calc(100vh - 58px); }
+        .gb { padding:5px 12px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600; background:#334155; color:#e2e8f0; }
+        .gb:hover:not(:disabled){background:#475569;} .gb:disabled{opacity:.4;cursor:not-allowed;}
+        .gg{background:#16a34a;color:#fff;} .gg:hover:not(:disabled){background:#15803d;}
+        .gb2{background:#0ea5e9;color:#fff;} .gb2:hover:not(:disabled){background:#0284c7;}
+        #gs-st{color:#94a3b8;font-size:11px;flex:1;}
+        .gsm{color:#fff;font-size:11px;font-weight:700;padding:3px 5px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 5px rgba(0,0,0,.3);}
+        .gsp{min-width:190px;font-size:13px;}
+        .gsp b{display:block;font-size:14px;margin-bottom:3px;color:#1e293b;}
+        .gsp small{display:block;color:#64748b;font-size:11px;margin-bottom:4px;}
+        .gsp table{width:100%;border-collapse:collapse;}
+        .gsp td{padding:3px 4px;font-size:12px;border-bottom:1px solid #f1f5f9;}
+        .gsp .pv{font-weight:700;color:#0ea5e9;text-align:right;}
+        @keyframes gsp{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+    </style>
 </head>
 <body>
 <div id="gs-bar">
@@ -43,17 +43,26 @@ body { font-family:"Segoe UI",sans-serif; font-size:13px; }
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// Definición global para que MyGeotab lo reconozca
+/**
+ * GEOTAB ADD-IN STRUCTURE
+ */
 geotab.addin.gasolineras = function (api, state) {
     var PROXY = "https://proxy-gasolineras.onrender.com/gasolineras";
     var map, allStations = null, stM = [], vM = [];
 
-    // Función interna para cargar vehículos usando la API inyectada
+    // Funciones de utilidad
+    function pES(s){ return(!s||s.trim()==="")?NaN:parseFloat(s.replace(",",".")); }
+    function fP(v){ return isNaN(v)?"-":v.toFixed(3)+" €/L"; }
+    function col(d){
+        if(isNaN(d))return"#94a3b8"; if(d<=1.38)return"#16a34a"; if(d<=1.48)return"#65a30d";
+        if(d<=1.55)return"#d97706"; if(d<=1.65)return"#ea580c"; return"#dc2626";
+    }
+    function st(m){ document.getElementById("gs-st").textContent=m; }
+
     function cargarVehiculos() {
-        document.getElementById("gs-st").textContent = "⏳ Cargando vehículos...";
+        st("⏳ Cargando vehículos...");
         document.getElementById("gs-bv").disabled = true;
 
-        // Usamos el objeto 'api' que viene del scope superior
         api.call("Get", {
             typeName: "DeviceStatusInfo"
         }, function(r) {
@@ -70,9 +79,8 @@ geotab.addin.gasolineras = function (api, state) {
                     iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -15]
                 });
                 
-                // Intentar obtener el nombre del dispositivo si está disponible
                 var nom = (s.device && s.device.id) || "Vehículo";
-                var pop = "<div class='gsp'><b>🚛 " + nom + "</b><small>" + s.latitude.toFixed(5) + ", " + s.longitude.toFixed(5) + "</small><small>" + (mv ? "🟢 En movimiento" : "🔴 Parado") + "</small></div>";
+                var pop = "<div class='gsp'><b>🚛 "+nom+"</b><small>"+s.latitude.toFixed(5)+", "+s.longitude.toFixed(5)+"</small><small>"+(mv?"🟢 En movimiento":"🔴 Parado")+"</small></div>";
                 
                 var m = L.marker([s.latitude, s.longitude], { icon: icon }).bindPopup(pop);
                 m.addTo(map);
@@ -83,51 +91,64 @@ geotab.addin.gasolineras = function (api, state) {
 
             if (bounds.length > 0) map.fitBounds(bounds, { padding: [80, 80], maxZoom: 12 });
             document.getElementById("gs-bv").disabled = false;
-            document.getElementById("gs-st").textContent = "🚛 " + n + " vehículos cargados";
+            st("🚛 " + n + " vehículos cargados");
         }, function(e) {
             document.getElementById("gs-bv").disabled = false;
-            document.getElementById("gs-st").textContent = "❌ Error: " + (e.message || e);
+            st("❌ Error API Geotab");
         });
     }
 
-    // ... (Mantén tus funciones pES, fP, col, mostrar, cargarGasolineras igual que antes) ...
+    function cargarGasolineras() {
+        if(allStations){ mostrar(); return; }
+        var btn = document.getElementById("gs-bg");
+        btn.disabled = true; st("⏳ Descargando datos...");
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", PROXY, true);
+        xhr.onreadystatechange = function(){
+            if(xhr.readyState !== 4) return;
+            btn.disabled = false;
+            if(xhr.status === 200){
+                allStations = JSON.parse(xhr.responseText).ListaEESSPrecio || [];
+                document.getElementById("gs-br").disabled = false;
+                mostrar();
+            } else { st("❌ Error HTTP " + xhr.status); }
+        };
+        xhr.send();
+    }
+
+    function mostrar() {
+        stM.forEach(function(m){ map.removeLayer(m); }); stM = [];
+        var b = map.getBounds(), fil = [];
+        allStations.forEach(function(s){
+            var lat = pES(s["Latitud"]), lon = pES(s["Longitud (WGS84)"]);
+            if(isNaN(lat) || isNaN(lon) || !b.contains([lat,lon])) return;
+            fil.push({s:s, lat:lat, lon:lon, _d:pES(s["Precio Gasoleo A"]), _g95:pES(s["Precio Gasolina 95 E5"]), _g98:pES(s["Precio Gasolina 98 E5"]), _glp:pES(s["Precio Gases licuados del petróleo"])});
+        });
+        fil.sort(function(a,b){ return (a._d || 9) - (b._d || 9); });
+        fil.slice(0,300).forEach(function(f){
+            var c = col(f._d);
+            var icon = L.divIcon({className:"", html:"<div class='gsm' style='background:"+c+"'>"+(isNaN(f._d)?"?":f._d.toFixed(3)+"€")+"</div>", iconSize:[68,22], iconAnchor:[34,11], popupAnchor:[0,-14]});
+            var pop = "<div class='gsp'><b>⛽ "+(f.s["Rótulo"]||"Gasolinera")+"</b><small>📍 "+(f.s["Dirección"]||"")+"</small><table>"+(!isNaN(f._d)?"<tr><td>🔵 Gasóleo A</td><td class='pv'>"+fP(f._d)+"</td></tr>":"")+"</table></div>";
+            var m = L.marker([f.lat, f.lon], {icon:icon}).bindPopup(pop);
+            m.addTo(map); stM.push(m);
+        });
+        st("⛽ " + stM.length + " gasolineras · 🚛 " + vM.length + " vehículos");
+    }
 
     return {
-        /**
-         * initialize() se ejecuta UNA VEZ cuando el Add-in se carga.
-         */
         initialize: function (api, state, callback) {
-            // Iniciar mapa
             map = L.map("gs-map").setView([40.4168, -3.7038], 6);
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-                attribution: "© OpenStreetMap | MITECO", maxZoom: 18
-            }).addTo(map);
-
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap" }).addTo(map);
             map.on("moveend", function () { if (allStations) mostrar(); });
 
-            // Asignar eventos a botones
             document.getElementById("gs-bv").addEventListener("click", cargarVehiculos);
             document.getElementById("gs-bg").addEventListener("click", cargarGasolineras);
             document.getElementById("gs-br").addEventListener("click", function () { if (allStations) mostrar(); });
 
-            // IMPORTANTE: Avisar a Geotab que la inicialización terminó
             callback();
         },
-
-        /**
-         * focus() se ejecuta cada vez que el usuario entra en la pestaña del Add-in.
-         */
-        focus: function (api, state) {
-            // Opcional: Refrescar vehículos automáticamente al entrar
-            cargarVehiculos();
-        },
-
-        /**
-         * blur() se ejecuta cuando el usuario cambia de pestaña.
-         */
-        blur: function (api, state) {
-            console.log("Add-in en segundo plano");
-        }
+        focus: function (api, state) { cargarVehiculos(); },
+        blur: function (api, state) { }
     };
 };
 </script>
