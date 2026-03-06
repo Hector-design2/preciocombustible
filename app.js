@@ -345,64 +345,67 @@
    Modo: customPage — Geotab inyecta la API automáticamente
    ============================================================= */
 
-geotab.addin.Gasolineras = function () {
-    "use strict";
+// ============================================================
+// Geotab Add-In: Gasolineras España
+// Patron identico al Add-In AdBlue — API inyectada por Geotab
+// ============================================================
 
-    var api;
-    var map = null;
-    var allStations = null;
-    var stationMarkers = [];
-    var vehicleMarkers = [];
+geotab.addin.gasolineras = (api, state) => {
 
-    var PROXY_URL = "https://proxy-gasolineras.onrender.com/gasolineras";
+    const PROXY_URL = "https://proxy-gasolineras.onrender.com/gasolineras";
 
-    function parseES(s) {
-        if (!s || s.trim() === "") return NaN;
-        return parseFloat(s.replace(",", "."));
-    }
-    function formatP(v) { return isNaN(v) ? "-" : v.toFixed(3) + " €/L"; }
-    function colorDiesel(d) {
+    let map = null;
+    let allStations = null;
+    let stationMarkers = [];
+    let vehicleMarkers = [];
+
+    // ── Utilidades ────────────────────────────────────────────
+    const parseES = s => (!s || s.trim() === "") ? NaN : parseFloat(s.replace(",", "."));
+    const formatP  = v => isNaN(v) ? "-" : v.toFixed(3) + " €/L";
+    const colorDiesel = d => {
         if (isNaN(d))  return "#94a3b8";
         if (d <= 1.38) return "#16a34a";
         if (d <= 1.48) return "#65a30d";
         if (d <= 1.55) return "#d97706";
         if (d <= 1.65) return "#ea580c";
         return "#dc2626";
-    }
-    function setStatus(msg) {
-        var el = document.getElementById("gs-status");
+    };
+    const setStatus = msg => {
+        const el = document.getElementById("gs-status");
         if (el) el.textContent = msg;
-    }
+    };
 
-    function buildUI() {
-        var root = document.getElementById("gs-root");
+    // ── UI ────────────────────────────────────────────────────
+    const buildUI = () => {
+        const root = document.getElementById("gs-root");
         if (!root) return;
-        root.innerHTML =
-            "<div id='gs-toolbar'>" +
-                "<button id='gs-btn-v' class='gs-btn gs-green'>Vehiculos</button>" +
-                "<button id='gs-btn-g' class='gs-btn gs-blue'>Gasolineras</button>" +
-                "<button id='gs-btn-r' class='gs-btn' disabled>Refrescar</button>" +
-                "<span id='gs-status' class='gs-status'>Cargando vehiculos...</span>" +
-            "</div>" +
-            "<div id='gs-legend'>" +
-                "<span style='color:#16a34a'>&#9679; &lt;1.38&euro;</span>" +
-                "<span style='color:#65a30d'>&#9679; 1.38-1.48&euro;</span>" +
-                "<span style='color:#d97706'>&#9679; 1.48-1.55&euro;</span>" +
-                "<span style='color:#ea580c'>&#9679; 1.55-1.65&euro;</span>" +
-                "<span style='color:#dc2626'>&#9679; &gt;1.65&euro;</span>" +
-                "<small> &mdash; Gasoleo A &middot; MITECO</small>" +
-            "</div>" +
-            "<div id='gs-map'></div>";
 
-        document.getElementById("gs-btn-v").onclick = cargarVehiculos;
-        document.getElementById("gs-btn-g").onclick = cargarGasolineras;
-        document.getElementById("gs-btn-r").onclick = function () {
-            if (allStations) mostrarEnVista();
-        };
-    }
+        root.innerHTML = `
+            <div id="gs-toolbar">
+                <button id="gs-btn-v" class="gs-btn gs-green">🚛 Vehículos</button>
+                <button id="gs-btn-g" class="gs-btn gs-blue">⛽ Gasolineras</button>
+                <button id="gs-btn-r" class="gs-btn" disabled>🗺️ Refrescar</button>
+                <span id="gs-status" class="gs-status">Cargando vehículos...</span>
+            </div>
+            <div id="gs-legend">
+                <span style="color:#16a34a">● &lt;1.38€</span>
+                <span style="color:#65a30d">● 1.38-1.48€</span>
+                <span style="color:#d97706">● 1.48-1.55€</span>
+                <span style="color:#ea580c">● 1.55-1.65€</span>
+                <span style="color:#dc2626">● &gt;1.65€</span>
+                <small> — Gasóleo A · Fuente: MITECO</small>
+            </div>
+            <div id="gs-map"></div>
+        `;
 
-    function initMap() {
-        var container = document.getElementById("gs-map");
+        document.getElementById("gs-btn-v").addEventListener("click", cargarVehiculos);
+        document.getElementById("gs-btn-g").addEventListener("click", cargarGasolineras);
+        document.getElementById("gs-btn-r").addEventListener("click", () => { if (allStations) mostrarEnVista(); });
+    };
+
+    // ── Mapa ──────────────────────────────────────────────────
+    const initMap = () => {
+        const container = document.getElementById("gs-map");
         if (!container) return;
         if (container._leaflet_id) {
             container._leaflet_id = null;
@@ -410,155 +413,154 @@ geotab.addin.Gasolineras = function () {
         }
         map = L.map("gs-map").setView([40.4168, -3.7038], 6);
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: "OpenStreetMap | MITECO", maxZoom: 18
+            attribution: "© OpenStreetMap | Precios: MITECO",
+            maxZoom: 18
         }).addTo(map);
-        map.on("moveend", function () { if (allStations) mostrarEnVista(); });
-    }
+        map.on("moveend", () => { if (allStations) mostrarEnVista(); });
+    };
 
-    function cargarVehiculos() {
-        setStatus("Cargando vehiculos...");
+    // ── Vehículos ─────────────────────────────────────────────
+    const cargarVehiculos = async () => {
+        setStatus("⏳ Cargando vehículos...");
         document.getElementById("gs-btn-v").disabled = true;
 
-        api.call("Get", { typeName: "DeviceStatusInfo" }, function (statuses) {
-            vehicleMarkers.forEach(function (m) { map.removeLayer(m); });
-            vehicleMarkers = [];
-            var bounds = [];
-            var count = 0;
+        try {
+            const statuses = await api.call("Get", { typeName: "DeviceStatusInfo" });
 
-            statuses.forEach(function (s) {
+            vehicleMarkers.forEach(m => map.removeLayer(m));
+            vehicleMarkers = [];
+            const bounds = [];
+
+            statuses.forEach(s => {
                 if (!s.latitude || !s.longitude) return;
-                var moving = s.isDeviceCommunicating;
-                var color = moving ? "#16a34a" : "#dc2626";
-                var icon = L.divIcon({
+                const moving = s.isDeviceCommunicating;
+                const icon = L.divIcon({
                     className: "",
-                    html: "<div style='font-size:22px;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.4));'>" +
-                          (moving ? "&#128666;" : "&#128666;") + "</div>",
+                    html: `<div style="font-size:22px;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.4));${moving ? 'animation:gspulse 1.5s ease-in-out infinite' : 'opacity:0.75'}">🚛</div>`,
                     iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -15]
                 });
-                var nombre = (s.device && s.device.id) ? s.device.id : "Vehiculo";
-                var popup =
-                    "<div class='gs-popup'>" +
-                    "<b>Vehiculo: " + nombre + "</b>" +
-                    "<small>Lat: " + s.latitude.toFixed(5) + " Lon: " + s.longitude.toFixed(5) + "</small>" +
-                    "<small>Estado: " + (moving ? "En movimiento" : "Parado") + "</small>" +
-                    "</div>";
-                var m = L.marker([s.latitude, s.longitude], { icon: icon }).bindPopup(popup);
+                const nombre = s.device?.id || "Vehículo";
+                const popup = `
+                    <div class="gs-popup">
+                        <b>🚛 ${nombre}</b>
+                        <small>📍 ${s.latitude.toFixed(5)}, ${s.longitude.toFixed(5)}</small>
+                        <small>Estado: ${moving ? "🟢 En movimiento" : "🔴 Parado"}</small>
+                    </div>`;
+                const m = L.marker([s.latitude, s.longitude], { icon }).bindPopup(popup);
                 m.addTo(map);
                 vehicleMarkers.push(m);
                 bounds.push([s.latitude, s.longitude]);
-                count++;
             });
 
             if (bounds.length > 0) map.fitBounds(bounds, { padding: [80, 80], maxZoom: 12 });
             document.getElementById("gs-btn-v").disabled = false;
-            setStatus(count + " vehiculos. Pulsa Gasolineras para ver precios.");
+            setStatus(`🚛 ${vehicleMarkers.length} vehículos cargados. Pulsa Gasolineras para ver precios ⛽`);
 
-        }, function (err) {
+        } catch (error) {
             document.getElementById("gs-btn-v").disabled = false;
-            setStatus("Error vehiculos: " + (err.message || err));
-        });
-    }
+            setStatus(`❌ Error vehículos: ${error.message}`);
+        }
+    };
 
-    function cargarGasolineras() {
+    // ── Gasolineras ───────────────────────────────────────────
+    const cargarGasolineras = () => {
         if (allStations) { mostrarEnVista(); return; }
-        var btn = document.getElementById("gs-btn-g");
+
+        const btn = document.getElementById("gs-btn-g");
         btn.disabled = true;
-        setStatus("Descargando datos del Ministerio...");
-        var xhr = new XMLHttpRequest();
+        setStatus("⏳ Descargando datos del Ministerio...");
+
+        const xhr = new XMLHttpRequest();
         xhr.open("GET", PROXY_URL, true);
         xhr.onreadystatechange = function () {
             if (xhr.readyState !== 4) return;
             btn.disabled = false;
             if (xhr.status === 200) {
-                var data = JSON.parse(xhr.responseText);
+                const data = JSON.parse(xhr.responseText);
                 allStations = data.ListaEESSPrecio || [];
                 document.getElementById("gs-btn-r").disabled = false;
                 mostrarEnVista();
             } else {
-                setStatus("Error gasolineras: " + xhr.status);
+                setStatus(`❌ Error gasolineras: HTTP ${xhr.status}`);
             }
         };
-        xhr.onerror = function () { btn.disabled = false; setStatus("Error de red con proxy"); };
+        xhr.onerror = () => { btn.disabled = false; setStatus("❌ Error de red con el proxy"); };
         xhr.send();
-    }
+    };
 
-    function mostrarEnVista() {
-        stationMarkers.forEach(function (m) { map.removeLayer(m); });
+    const mostrarEnVista = () => {
+        stationMarkers.forEach(m => map.removeLayer(m));
         stationMarkers = [];
-        var b = map.getBounds();
-        var filtradas = [];
 
-        allStations.forEach(function (s) {
-            var lat = parseES(s["Latitud"]);
-            var lon = parseES(s["Longitud (WGS84)"]);
-            if (isNaN(lat) || isNaN(lon)) return;
-            if (!b.contains([lat, lon])) return;
-            s._lat = lat; s._lon = lon;
-            s._d   = parseES(s["Precio Gasoleo A"]);
-            s._g95 = parseES(s["Precio Gasolina 95 E5"]);
-            s._g98 = parseES(s["Precio Gasolina 98 E5"]);
-            s._glp = parseES(s["Precio Gases licuados del petroleo"]);
-            filtradas.push(s);
-        });
+        const b = map.getBounds();
+        let filtradas = allStations
+            .map(s => {
+                const lat = parseES(s["Latitud"]);
+                const lon = parseES(s["Longitud (WGS84)"]);
+                if (isNaN(lat) || isNaN(lon) || !b.contains([lat, lon])) return null;
+                return { ...s, _lat: lat, _lon: lon,
+                    _d:   parseES(s["Precio Gasoleo A"]),
+                    _g95: parseES(s["Precio Gasolina 95 E5"]),
+                    _g98: parseES(s["Precio Gasolina 98 E5"]),
+                    _glp: parseES(s["Precio Gases licuados del petróleo"])
+                };
+            })
+            .filter(Boolean)
+            .sort((a, b) => {
+                if (isNaN(a._d) && isNaN(b._d)) return 0;
+                if (isNaN(a._d)) return 1;
+                if (isNaN(b._d)) return -1;
+                return a._d - b._d;
+            })
+            .slice(0, 300);
 
-        filtradas.sort(function (a, b) {
-            if (isNaN(a._d) && isNaN(b._d)) return 0;
-            if (isNaN(a._d)) return 1;
-            if (isNaN(b._d)) return -1;
-            return a._d - b._d;
-        });
-
-        filtradas.slice(0, 300).forEach(function (s) {
-            var c = colorDiesel(s._d);
-            var label = isNaN(s._d) ? "?" : s._d.toFixed(3) + "\u20ac";
-            var icon = L.divIcon({
+        filtradas.forEach(s => {
+            const c = colorDiesel(s._d);
+            const label = isNaN(s._d) ? "?" : s._d.toFixed(3) + "€";
+            const icon = L.divIcon({
                 className: "",
-                html: "<div class='gs-marker' style='background:" + c + "'>" + label + "</div>",
+                html: `<div class="gs-marker" style="background:${c}">${label}</div>`,
                 iconSize: [68, 22], iconAnchor: [34, 11], popupAnchor: [0, -14]
             });
-            var popup =
-                "<div class='gs-popup'>" +
-                "<b>" + (s["Rotulo"] || "Gasolinera") + "</b>" +
-                "<small>" + (s["Direccion"] || s["Dirección"] || "") + ", " + (s["Municipio"] || "") + "</small>" +
-                "<table>" +
-                (isNaN(s._d)   ? "" : "<tr><td>Gasoleo A</td><td class='pv'>"   + formatP(s._d)   + "</td></tr>") +
-                (isNaN(s._g95) ? "" : "<tr><td>Gasolina 95</td><td class='pv'>" + formatP(s._g95) + "</td></tr>") +
-                (isNaN(s._g98) ? "" : "<tr><td>Gasolina 98</td><td class='pv'>" + formatP(s._g98) + "</td></tr>") +
-                (isNaN(s._glp) ? "" : "<tr><td>GLP</td><td class='pv'>"         + formatP(s._glp) + "</td></tr>") +
-                "</table>" +
-                "<div class='gs-horario'>" + (s["Horario"] || "-") + "</div>" +
-                "</div>";
-            var m = L.marker([s._lat, s._lon], { icon: icon }).bindPopup(popup);
+            const popup = `
+                <div class="gs-popup">
+                    <b>⛽ ${s["Rótulo"] || "Gasolinera"}</b>
+                    <small>📍 ${s["Dirección"] || ""}, ${s["Municipio"] || ""} (${s["Provincia"] || ""})</small>
+                    <table>
+                        ${!isNaN(s._d)   ? `<tr><td>🔵 Gasóleo A</td><td class="pv">${formatP(s._d)}</td></tr>` : ""}
+                        ${!isNaN(s._g95) ? `<tr><td>🟢 Gasolina 95</td><td class="pv">${formatP(s._g95)}</td></tr>` : ""}
+                        ${!isNaN(s._g98) ? `<tr><td>🟡 Gasolina 98</td><td class="pv">${formatP(s._g98)}</td></tr>` : ""}
+                        ${!isNaN(s._glp) ? `<tr><td>🟣 GLP</td><td class="pv">${formatP(s._glp)}</td></tr>` : ""}
+                    </table>
+                    <div class="gs-horario">🕐 ${s["Horario"] || "-"}</div>
+                </div>`;
+            const m = L.marker([s._lat, s._lon], { icon }).bindPopup(popup);
             m.addTo(map);
             stationMarkers.push(m);
         });
 
-        setStatus(stationMarkers.length + " gasolineras en vista | " + vehicleMarkers.length + " vehiculos");
-    }
+        setStatus(`⛽ ${stationMarkers.length} gasolineras en vista · 🚛 ${vehicleMarkers.length} vehículos`);
+    };
 
-    function arrancar() {
-        if (typeof L !== "undefined") {
-            initMap();
-            cargarVehiculos();
-            return;
-        }
-        var script = document.createElement("script");
+    // ── Cargar Leaflet y arrancar ─────────────────────────────
+    const arrancar = () => {
+        if (typeof L !== "undefined") { initMap(); cargarVehiculos(); return; }
+        const script = document.createElement("script");
         script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-        script.onload = function () { initMap(); cargarVehiculos(); };
+        script.onload = () => { initMap(); cargarVehiculos(); };
         document.head.appendChild(script);
-    }
+    };
 
+    // ── Ciclo de vida Geotab ──────────────────────────────────
     return {
-        initialize: function (apiRef, state, callback) {
-            api = apiRef;
+        initialize(api, state, callback) {
             callback();
         },
-        focus: function (apiRef, state) {
-            api = apiRef;
+        focus(api, state) {
             buildUI();
             arrancar();
         },
-        blur: function () {
+        blur() {
             if (map) { map.remove(); map = null; }
             allStations = null;
             stationMarkers = [];
