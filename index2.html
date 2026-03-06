@@ -1,133 +1,121 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gasolineras España - Geotab</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <style>
-        /* Forzamos que el cuerpo no tenga scroll propio */
-        html, body { 
-            height: 100%; 
-            margin: 0; 
-            padding: 0; 
-            overflow: hidden; 
-            font-family: sans-serif;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; font-family: "Segoe UI", Tahoma, sans-serif; }
+        
+        /* Contenedor Principal */
+        #addin-container { display: flex; flex-direction: column; height: 100vh; width: 100%; }
+
+        /* Toolbar estilo Geotab */
+        #toolbar { 
+            height: 52px; background: #fff; border-bottom: 1px solid #e0e0e0;
+            display: flex; align-items: center; padding: 0 15px; gap: 10px; flex-shrink: 0;
         }
-        #gs-container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh; /* Ocupa el 100% de la ventana */
+
+        #map { flex-grow: 1; width: 100%; background: #f0f0f0; }
+
+        .btn {
+            padding: 8px 16px; border-radius: 4px; border: 1px solid #ccc;
+            background: #fff; cursor: pointer; font-weight: 600; font-size: 13px;
         }
-        #gs-bar {
-            background: #1e293b;
-            padding: 10px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-shrink: 0; /* Evita que la barra se encoja */
-        }
-        /* El mapa debe crecer para ocupar el resto */
-        #gs-map {
-            flex-grow: 1; 
-            width: 100%;
-            background: #cbd5e1; /* Color de fondo para saber si el div existe */
-        }
-        .gb { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .gg { background: #16a34a; color: white; }
-        .gb2 { background: #0ea5e9; color: white; }
-        #gs-st { color: #94a3b8; font-size: 12px; margin-left: auto; }
+        .btn-primary { background: #2563eb; color: white; border-color: #1d4ed8; }
+        #status { margin-left: auto; color: #666; font-size: 12px; }
     </style>
 </head>
 <body>
 
-<div id="gs-container">
-    <div id="gs-bar">
-        <button class="gb gg" id="gs-bv">🚛 Vehículos</button>
-        <button class="gb gb2" id="gs-bg">⛽ Gasolineras</button>
-        <span id="gs-st">Iniciando mapa...</span>
+<div id="addin-container">
+    <div id="toolbar">
+        <button id="btnVehiculos" class="btn btn-primary">🚛 Ver Vehículos</button>
+        <button id="btnGasolineras" class="btn">⛽ Ver Gasolineras</button>
+        <span id="status">Cargando...</span>
     </div>
-    <div id="gs-map"></div>
+    <div id="map"></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 /**
- * LÓGICA REFORZADA PARA GEOTAB
+ * LÓGICA DE INTEGRACIÓN OFICIAL
  */
-var gasolinerasAddIn = function (api, state) {
-    var map = null;
+geotab.addin.gasolineras = function (api, state) {
+    var map;
+    var markersGas = [];
+    var markersVeh = [];
 
     function initMap() {
-        if (map) return; // Evitar duplicados
-
-        // Inicializar el objeto mapa
-        map = L.map('gs-map').setView([40.41, -3.70], 6);
-        
+        if (map) return;
+        map = L.map('map').setView([40.4168, -3.7038], 6);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(map);
 
-        // --- TRUCO CLAVE PARA GEOTAB ---
-        // Forzamos al mapa a recalcular su tamaño cada 300ms durante el primer segundo
-        // Esto soluciona el problema de la pantalla gris/blanca
-        var fixes = 0;
-        var interval = setInterval(function() {
-            map.invalidateSize();
-            fixes++;
-            if(fixes > 5) clearInterval(interval);
-        }, 300);
-        
-        document.getElementById("gs-st").textContent = "Mapa Cargado";
+        // Forzado de renderizado para evitar cuadros grises en MyGeotab
+        setTimeout(function() { map.invalidateSize(); }, 500);
     }
 
     return {
         initialize: function (api, state, callback) {
             initMap();
 
-            // Configurar botones
-            document.getElementById("gs-bg").onclick = function() {
-                document.getElementById("gs-st").textContent = "Cargando datos...";
-                fetch("https://proxy-gasolineras.onrender.com/gasolineras")
-                    .then(r => r.json())
-                    .then(data => {
-                        var list = data.ListaEESSPrecio || [];
-                        list.slice(0, 50).forEach(s => {
-                            var lat = parseFloat(s.Latitud.replace(",", "."));
-                            var lon = parseFloat(s["Longitud (WGS84)"].replace(",", "."));
-                            L.marker([lat, lon]).addTo(map).bindPopup(s.Rótulo);
-                        });
-                        document.getElementById("gs-st").textContent = "Gasolineras OK";
+            // Lógica para Vehículos (Usa la API de Geotab inyectada)
+            document.getElementById("btnVehiculos").onclick = function() {
+                document.getElementById("status").textContent = "Obteniendo flota...";
+                api.call("Get", { typeName: "DeviceStatusInfo" }, function(result) {
+                    markersVeh.forEach(m => map.removeLayer(m));
+                    markersVeh = [];
+                    var coords = [];
+                    
+                    result.forEach(function(d) {
+                        if (d.latitude && d.longitude) {
+                            var m = L.marker([d.latitude, d.longitude], {
+                                icon: L.divIcon({html:'🚛', className:'', iconSize:[25,25]})
+                            }).addTo(map).bindPopup("Vehículo ID: " + d.device.id);
+                            markersVeh.push(m);
+                            coords.push([d.latitude, d.longitude]);
+                        }
                     });
-            };
-
-            document.getElementById("gs-bv").onclick = function() {
-                if(!api) return;
-                api.call("Get", { typeName: "DeviceStatusInfo" }, function(res) {
-                    res.forEach(d => {
-                        if(d.latitude) L.marker([d.latitude, d.longitude]).addTo(map);
-                    });
-                    document.getElementById("gs-st").textContent = "Vehículos OK";
+                    if(coords.length > 0) map.fitBounds(coords, {padding: [50,50]});
+                    document.getElementById("status").textContent = markersVeh.length + " vehículos.";
                 });
             };
 
+            // Lógica para Gasolineras (Usa tu Proxy)
+            document.getElementById("btnGasolineras").onclick = function() {
+                document.getElementById("status").textContent = "Consultando precios...";
+                fetch("https://proxy-gasolineras.onrender.com/gasolineras")
+                    .then(r => r.json())
+                    .then(data => {
+                        markersGas.forEach(m => map.removeLayer(m));
+                        var list = data.ListaEESSPrecio || [];
+                        list.slice(0, 100).forEach(function(s) {
+                            var lat = parseFloat(s.Latitud.replace(",", "."));
+                            var lon = parseFloat(s["Longitud (WGS84)"].replace(",", "."));
+                            if(!isNaN(lat)) {
+                                var m = L.marker([lat, lon]).addTo(map)
+                                         .bindPopup("<b>"+s.Rótulo+"</b><br>"+s["Precio Gasoleo A"]+" €/L");
+                                markersGas.push(m);
+                            }
+                        });
+                        document.getElementById("status").textContent = "Gasolineras cargadas.";
+                    });
+            };
+
+            document.getElementById("status").textContent = "Listo";
             if (callback) callback();
         },
         focus: function (api, state) {
-            if (map) map.invalidateSize(); // Refrescar al volver a la pestaña
+            if (map) map.invalidateSize();
         },
         blur: function () {}
     };
 };
-
-// Registro
-if (typeof geotab !== "undefined") {
-    geotab.addin.gasolineras = gasolinerasAddIn;
-} else {
-    // Si entras por fuera de Geotab
-    window.onload = function() {
-        var test = gasolinerasAddIn(null, null);
-        test.initialize(null, null, null);
-    };
-}
 </script>
 </body>
 </html>
