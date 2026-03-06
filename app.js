@@ -353,175 +353,26 @@
 // Geotab Add-In: Gasolineras España
 // Mismo patrón exacto que el Add-In AdBlue
 
+// app.js — solo sirve para que Geotab llame a focus(api)
+// y pasar la API al index.html que ya está cargado
+
 geotab.addin.gasolineras = function(api, state) {
-
-    var PROXY = "https://proxy-gasolineras.onrender.com/gasolineras";
-    var map = null;
-    var allStations = null;
-    var stMarkers = [];
-    var vMarkers = [];
-
-    // ── Utilidades ────────────────────────────────────────
-    function pES(s) { return (!s || s.trim() === "") ? NaN : parseFloat(s.replace(",", ".")); }
-    function fP(v)  { return isNaN(v) ? "-" : v.toFixed(3) + " €/L"; }
-    function col(d) {
-        if (isNaN(d))  return "#94a3b8";
-        if (d <= 1.38) return "#16a34a";
-        if (d <= 1.48) return "#65a30d";
-        if (d <= 1.55) return "#d97706";
-        if (d <= 1.65) return "#ea580c";
-        return "#dc2626";
-    }
-    function st(msg) {
-        var el = document.getElementById("gs-st");
-        if (el) el.textContent = msg;
-    }
-
-    // ── Cargar Leaflet ────────────────────────────────────
-    function cargarLeaflet(callback) {
-        if (window.L) { callback(); return; }
-        var css = document.createElement("link");
-        css.rel = "stylesheet";
-        css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-        document.head.appendChild(css);
-        var scr = document.createElement("script");
-        scr.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-        scr.onload = callback;
-        document.head.appendChild(scr);
-    }
-
-    // ── Inicializar mapa ──────────────────────────────────
-    function initMap() {
-        var c = document.getElementById("gs-map");
-        if (!c) return;
-        if (c._leaflet_id) { c._leaflet_id = null; c.innerHTML = ""; }
-        map = L.map("gs-map").setView([40.4168, -3.7038], 6);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: "© OpenStreetMap | MITECO", maxZoom: 18
-        }).addTo(map);
-        map.on("moveend", function() { if (allStations) mostrarVista(); });
-    }
-
-    // ── Vehículos ─────────────────────────────────────────
-    function cargarVehiculos() {
-        st("⏳ Cargando vehículos...");
-        document.getElementById("gs-bv").disabled = true;
-
-        api.call("Get", { typeName: "DeviceStatusInfo" },
-            function(statuses) {
-                vMarkers.forEach(function(m) { map.removeLayer(m); });
-                vMarkers = [];
-                var bounds = [], n = 0;
-
-                statuses.forEach(function(s) {
-                    if (!s.latitude || !s.longitude) return;
-                    var mv = s.isDeviceCommunicating;
-                    var icon = L.divIcon({ className: "",
-                        html: "<div style='font-size:22px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4));" +
-                              (mv ? "animation:gsp 1.5s ease-in-out infinite" : "opacity:.75") + "'>🚛</div>",
-                        iconSize: [30,30], iconAnchor: [15,15], popupAnchor: [0,-15]
-                    });
-                    var nom = (s.device && s.device.id) ? s.device.id : "Vehículo";
-                    var pop = "<div class='gsp'><b>🚛 " + nom + "</b>" +
-                        "<small>📍 " + s.latitude.toFixed(5) + ", " + s.longitude.toFixed(5) + "</small>" +
-                        "<small>" + (mv ? "🟢 En movimiento" : "🔴 Parado") + "</small></div>";
-                    var m = L.marker([s.latitude, s.longitude], { icon: icon }).bindPopup(pop);
-                    m.addTo(map); vMarkers.push(m); bounds.push([s.latitude, s.longitude]); n++;
-                });
-
-                if (bounds.length > 0) map.fitBounds(bounds, { padding: [80,80], maxZoom: 12 });
-                document.getElementById("gs-bv").disabled = false;
-                st("🚛 " + n + " vehículos · Pulsa ⛽ para ver precios de gasolineras cercanas");
-            },
-            function(err) {
-                document.getElementById("gs-bv").disabled = false;
-                st("❌ Error vehículos: " + (err.message || err));
-            }
-        );
-    }
-
-    // ── Gasolineras ───────────────────────────────────────
-    function cargarGasolineras() {
-        if (allStations) { mostrarVista(); return; }
-        var btn = document.getElementById("gs-bg");
-        btn.disabled = true;
-        st("⏳ Descargando datos del Ministerio...");
-        var xhr = new XMLHttpRequest();
-        xhr.open("GET", PROXY, true);
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState !== 4) return;
-            btn.disabled = false;
-            if (xhr.status === 200) {
-                allStations = JSON.parse(xhr.responseText).ListaEESSPrecio || [];
-                document.getElementById("gs-br").disabled = false;
-                mostrarVista();
-            } else {
-                st("❌ Error gasolineras: HTTP " + xhr.status);
-            }
-        };
-        xhr.onerror = function() { btn.disabled = false; st("❌ Error de red con proxy"); };
-        xhr.send();
-    }
-
-    function mostrarVista() {
-        stMarkers.forEach(function(m) { map.removeLayer(m); }); stMarkers = [];
-        var b = map.getBounds(), fil = [];
-        allStations.forEach(function(s) {
-            var lat = pES(s["Latitud"]), lon = pES(s["Longitud (WGS84)"]);
-            if (isNaN(lat) || isNaN(lon) || !b.contains([lat, lon])) return;
-            fil.push({ s: s, lat: lat, lon: lon,
-                _d:   pES(s["Precio Gasoleo A"]),
-                _g95: pES(s["Precio Gasolina 95 E5"]),
-                _g98: pES(s["Precio Gasolina 98 E5"]),
-                _glp: pES(s["Precio Gases licuados del petróleo"])
-            });
-        });
-        fil.sort(function(a, b) {
-            if (isNaN(a._d) && isNaN(b._d)) return 0;
-            if (isNaN(a._d)) return 1; if (isNaN(b._d)) return -1;
-            return a._d - b._d;
-        });
-        fil.slice(0, 300).forEach(function(f) {
-            var c = col(f._d);
-            var icon = L.divIcon({ className: "",
-                html: "<div class='gsm' style='background:" + c + "'>" + (isNaN(f._d) ? "?" : f._d.toFixed(3) + "€") + "</div>",
-                iconSize: [68,22], iconAnchor: [34,11], popupAnchor: [0,-14]
-            });
-            var pop = "<div class='gsp'><b>⛽ " + (f.s["Rótulo"] || "Gasolinera") + "</b>" +
-                "<small>📍 " + (f.s["Dirección"] || "") + ", " + (f.s["Municipio"] || "") + " (" + (f.s["Provincia"] || "") + ")</small>" +
-                "<table>" +
-                (!isNaN(f._d)   ? "<tr><td>🔵 Gasóleo A</td><td class='pv'>"   + fP(f._d)   + "</td></tr>" : "") +
-                (!isNaN(f._g95) ? "<tr><td>🟢 Gasolina 95</td><td class='pv'>" + fP(f._g95) + "</td></tr>" : "") +
-                (!isNaN(f._g98) ? "<tr><td>🟡 Gasolina 98</td><td class='pv'>" + fP(f._g98) + "</td></tr>" : "") +
-                (!isNaN(f._glp) ? "<tr><td>🟣 GLP</td><td class='pv'>"         + fP(f._glp) + "</td></tr>" : "") +
-                "</table><div style='font-size:11px;color:#94a3b8;margin-top:4px'>🕐 " + (f.s["Horario"] || "-") + "</div></div>";
-            var m = L.marker([f.lat, f.lon], { icon: icon }).bindPopup(pop);
-            m.addTo(map); stMarkers.push(m);
-        });
-        st("⛽ " + stMarkers.length + " gasolineras en vista · 🚛 " + vMarkers.length + " vehículos");
-    }
-
-    // ── Ciclo de vida — igual que AdBlue ──────────────────
     return {
-
         initialize: function(api, state, callback) {
-            document.getElementById("gs-bv").addEventListener("click", cargarVehiculos);
-            document.getElementById("gs-bg").addEventListener("click", cargarGasolineras);
-            document.getElementById("gs-br").addEventListener("click", function() { if (allStations) mostrarVista(); });
             callback();
         },
-
         focus: function(api, state) {
-            cargarLeaflet(function() {
-                initMap();
-                st("⏳ Cargando vehículos...");
-                cargarVehiculos();
-            });
+            // Guardamos la API en window para que el index.html la use
+            window.api = api;
+            // Si el botón ya existe (HTML ya cargado), cargamos vehículos
+            var btn = document.getElementById("gs-bv");
+            if (btn) {
+                // Disparar carga automática de vehículos
+                btn.click();
+            }
         },
-
         blur: function() {
-            if (map) { map.remove(); map = null; }
-            allStations = null; stMarkers = []; vMarkers = [];
+            window.api = null;
         }
     };
 };
