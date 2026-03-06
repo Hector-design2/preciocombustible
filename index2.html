@@ -1,156 +1,123 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
     <meta charset="UTF-8">
+    <title>Geotab MITECO Add-In</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:"Segoe UI",sans-serif; font-size:13px; }
-        #gs-bar { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#1e293b; flex-wrap:wrap; }
-        #gs-leg { display:flex; gap:10px; padding:3px 12px; background:#fff; border-bottom:1px solid #e2e8f0; font-size:11px; flex-wrap:wrap; }
-        #gs-map { width:100%; height:calc(100vh - 58px); background: #f8fafc; }
-        .gb { padding:5px 12px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600; background:#334155; color:#e2e8f0; }
-        .gb:hover:not(:disabled){background:#475569;} .gb:disabled{opacity:.4;cursor:not-allowed;}
-        .gg{background:#16a34a;color:#fff;} .gg:hover:not(:disabled){background:#15803d;}
-        .gb2{background:#0ea5e9;color:#fff;} .gb2:hover:not(:disabled){background:#0284c7;}
-        #gs-st{color:#94a3b8;font-size:11px;flex:1;}
-        .gsm{color:#fff;font-size:11px;font-weight:700;padding:3px 5px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 5px rgba(0,0,0,.3); text-align:center;}
-        .gsp{min-width:190px;font-size:13px;}
-        .gsp b{display:block;font-size:14px;margin-bottom:3px;color:#1e293b;}
-        .gsp small{display:block;color:#64748b;font-size:11px;margin-bottom:4px;}
-        .gsp table{width:100%;border-collapse:collapse;}
-        .gsp td{padding:3px 4px;font-size:12px;border-bottom:1px solid #f1f5f9;}
-        .gsp .pv{font-weight:700;color:#0ea5e9;text-align:right;}
-        @keyframes gsp{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+        html, body { height: 100%; margin: 0; padding: 0; background: #f0f2f5; }
+        #gs-main { display: flex; flex-direction: column; height: 100vh; width: 100%; }
+        #gs-bar { background: #1e293b; padding: 12px; display: flex; align-items: center; gap: 10px; z-index: 9999; }
+        #gs-map { flex: 1; width: 100%; height: 100%; min-height: 500px; }
+        .gb { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-family: sans-serif; }
+        .gg { background: #16a34a; color: white; }
+        .gb2 { background: #0ea5e9; color: white; }
+        #gs-st { color: #cbd5e1; font-size: 12px; margin-left: auto; font-family: sans-serif; }
     </style>
 </head>
 <body>
-<div id="gs-bar">
-    <button class="gb gg"  id="gs-bv">🚛 Vehículos</button>
-    <button class="gb gb2" id="gs-bg">⛽ Gasolineras</button>
-    <button class="gb"     id="gs-br" disabled>🗺️ Refrescar</button>
-    <span id="gs-st">Iniciando...</span>
+
+<div id="gs-main">
+    <div id="gs-bar">
+        <button class="gb gg" id="gs-bv">🚛 Vehículos</button>
+        <button class="gb gb2" id="gs-bg">⛽ Gasolineras</button>
+        <span id="gs-st">Cargando sistema...</span>
+    </div>
+    <div id="gs-map"></div>
 </div>
-<div id="gs-leg">
-    <span style="color:#16a34a">● &lt;1.38€</span>
-    <span style="color:#65a30d">● 1.38–1.48€</span>
-    <span style="color:#d97706">● 1.48–1.55€</span>
-    <span style="color:#ea580c">● 1.55–1.65€</span>
-    <span style="color:#dc2626">● &gt;1.65€</span>
-    <small style="color:#94a3b8"> — Gasóleo A · MITECO</small>
-</div>
-<div id="gs-map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
 /**
- * LÓGICA PRINCIPAL DEL ADD-IN
+ * RECUERDA: Este nombre debe coincidir con el que pongas en config.json
  */
-var addInLogic = function (api, state) {
+var initAddIn = function (api, state) {
+    var map = null;
     var PROXY = "https://proxy-gasolineras.onrender.com/gasolineras";
-    var map, allStations = null, stM = [], vM = [];
-
-    function pES(s){ return(!s||s.trim()==="")?NaN:parseFloat(s.replace(",",".")); }
-    function fP(v){ return isNaN(v)?"-":v.toFixed(3)+" €/L"; }
-    function col(d){
-        if(isNaN(d))return"#94a3b8"; if(d<=1.38)return"#16a34a"; if(d<=1.48)return"#65a30d";
-        if(d<=1.55)return"#d97706"; if(d<=1.65)return"#ea580c"; return"#dc2626";
-    }
-    function st(m){ document.getElementById("gs-st").textContent=m; }
-
-    function cargarVehiculos() {
-        if (!api) { st("⚠️ API Geotab no disponible en modo web"); return; }
-        st("⏳ Cargando vehículos...");
-        document.getElementById("gs-bv").disabled = true;
-
-        api.call("Get", { typeName: "DeviceStatusInfo" }, function(r) {
-            vM.forEach(function(m) { map.removeLayer(m); });
-            vM = []; var bounds = [], n = 0;
-            r.forEach(function(s) {
-                if (!s.latitude || !s.longitude) return;
-                var mv = s.isDeviceCommunicating;
-                var icon = L.divIcon({
-                    className: "",
-                    html: "<div style='font-size:22px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4));" + (mv ? "animation:gsp 1.5s ease-in-out infinite" : "opacity:.75") + "'>🚛</div>",
-                    iconSize: [30, 30], iconAnchor: [15, 15]
-                });
-                var m = L.marker([s.latitude, s.longitude], { icon: icon }).bindPopup("<b>Vehículo ID:</b> " + s.device.id);
-                m.addTo(map); vM.push(m); bounds.push([s.latitude, s.longitude]); n++;
-            });
-            if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
-            document.getElementById("gs-bv").disabled = false;
-            st("🚛 " + n + " vehículos cargados");
-        }, function(e) { 
-            document.getElementById("gs-bv").disabled = false;
-            st("❌ Error API: " + e); 
-        });
-    }
-
-    function cargarGasolineras() {
-        var btn = document.getElementById("gs-bg");
-        btn.disabled = true; st("⏳ Descargando precios MITECO...");
-        fetch(PROXY).then(r => r.json()).then(data => {
-            allStations = data.ListaEESSPrecio || [];
-            document.getElementById("gs-br").disabled = false;
-            btn.disabled = false;
-            mostrar();
-        }).catch(err => {
-            btn.disabled = false;
-            st("❌ Error al conectar con el Proxy");
-        });
-    }
-
-    function mostrar() {
-        stM.forEach(m => map.removeLayer(m)); stM = [];
-        var b = map.getBounds(), fil = [];
-        allStations.forEach(s => {
-            var lat = pES(s["Latitud"]), lon = pES(s["Longitud (WGS84)"]);
-            if(isNaN(lat) || isNaN(lon) || !b.contains([lat,lon])) return;
-            fil.push({s, lat, lon, d: pES(s["Precio Gasoleo A"])});
-        });
-        fil.sort((a,b) => (a.d || 9) - (b.d || 9)).slice(0,200).forEach(f => {
-            var icon = L.divIcon({className:"", html:"<div class='gsm' style='background:"+col(f.d)+"'>"+(isNaN(f.d)?"?":f.d.toFixed(2))+"</div>", iconSize:[45,20]});
-            var m = L.marker([f.lat, f.lon], {icon}).bindPopup("<b>"+f.s["Rótulo"]+"</b><br>"+f.s["Dirección"]+"<br>Gasóleo A: "+fP(f.d));
-            m.addTo(map); stM.push(m);
-        });
-        st("⛽ " + stM.length + " gasolineras visibles");
-    }
 
     return {
-        init: function (apiObj, stateObj, callback) {
-            map = L.map("gs-map").setView([40.41, -3.70], 6);
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OSM" }).addTo(map);
+        // Esta es la función que Geotab llama al cargar
+        initialize: function (api, state, callback) {
+            console.log("Geotab Add-in Inicializando...");
             
-            document.getElementById("gs-bv").onclick = cargarVehiculos;
-            document.getElementById("gs-bg").onclick = cargarGasolineras;
-            document.getElementById("gs-br").onclick = mostrar;
-            map.on("moveend", () => { if(allStations) mostrar(); });
+            // 1. Verificar si Leaflet cargó correctamente
+            if (typeof L === 'undefined') {
+                document.getElementById("gs-st").textContent = "Error: Librería Leaflet no encontrada";
+                if(callback) callback();
+                return;
+            }
 
-            st("Listo");
-            if(callback) callback(); // Importante para que Geotab no se cuelgue
+            // 2. Crear el mapa
+            if (!map) {
+                map = L.map('gs-map', {
+                    center: [40.41, -3.70],
+                    zoom: 6,
+                    zoomControl: true
+                });
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap'
+                }).addTo(map);
+                
+                // Forzar re-dibujado para evitar gris en iframes
+                setTimeout(function(){ map.invalidateSize(); }, 500);
+            }
+
+            // 3. Eventos de botones
+            document.getElementById("gs-bv").onclick = function() {
+                if(!api) return;
+                document.getElementById("gs-st").textContent = "Buscando...";
+                api.call("Get", { typeName: "DeviceStatusInfo" }, function(result) {
+                    var coords = [];
+                    result.forEach(function(d) {
+                        if(d.latitude && d.longitude) {
+                            L.marker([d.latitude, d.longitude], {
+                                icon: L.divIcon({html:'🚛', className:'', iconSize:[20,20]})
+                            }).addTo(map).bindPopup("Vehículo: " + d.device.id);
+                            coords.push([d.latitude, d.longitude]);
+                        }
+                    });
+                    if(coords.length > 0) map.fitBounds(coords);
+                    document.getElementById("gs-st").textContent = coords.length + " vehículos.";
+                });
+            };
+
+            document.getElementById("gs-bg").onclick = function() {
+                document.getElementById("gs-st").textContent = "Cargando MITECO...";
+                fetch(PROXY).then(r => r.json()).then(data => {
+                    var list = data.ListaEESSPrecio || [];
+                    list.slice(0, 50).forEach(function(s) {
+                        var lat = parseFloat(s.Latitud.replace(",", "."));
+                        var lon = parseFloat(s["Longitud (WGS84)"].replace(",", "."));
+                        L.marker([lat, lon]).addTo(map)
+                         .bindPopup("<b>"+s.Rótulo+"</b><br>"+s["Precio Gasoleo A"]+"€");
+                    });
+                    document.getElementById("gs-st").textContent = "Gasolineras OK";
+                });
+            };
+
+            document.getElementById("gs-st").textContent = "Listo para usar";
+            
+            // 4. AVISAR A GEOTAB QUE TODO OK
+            if (callback) callback();
         },
-        focus: function() { cargarVehiculos(); }
+        focus: function (api, state) {
+            if(map) map.invalidateSize();
+        },
+        blur: function () {}
     };
 };
 
-/**
- * DETECTOR DE ENTORNO: Geotab vs Web Normal
- */
+// Registro para Geotab
 if (typeof geotab !== "undefined") {
-    // Si estamos en Geotab, registramos el add-in
-    geotab.addin.gasolineras = function(api, state) {
-        var logic = addInLogic(api, state);
-        return {
-            initialize: function(api, state, callback) { logic.init(api, state, callback); },
-            focus: function(api, state) { logic.focus(); },
-            blur: function() {}
-        };
-    };
+    // IMPORTANTE: El nombre después de 'geotab.addin.' debe coincidir con el config.json
+    geotab.addin.gasolineras = initAddIn;
 } else {
-    // Si estamos en la web normal (GitHub), iniciamos manualmente sin API
+    // Si entras por web normal
     window.onload = function() {
-        var standalone = addInLogic(null, null);
-        standalone.init(null, null, null);
+        var standalone = initAddIn(null, null);
+        standalone.initialize(null, null, null);
     };
 }
 </script>
