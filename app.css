@@ -1,256 +1,46 @@
-/* ================================================
-   Geotab Add-In: Gasolineras España — Estilos
-   ================================================ */
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; font-size: 13px; }
 
-#gasolineras-container {
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - 60px);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-size: 13px;
-    background: #f8fafc;
-}
+#gs-root { position: absolute; top: 0; bottom: 0; left: 0; right: 0; display: flex; flex-direction: column; }
 
-/* --- Toolbar --- */
 #gs-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: #1e293b;
     flex-shrink: 0;
-    flex-wrap: wrap;
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 10px; background: #1e293b; flex-wrap: wrap; z-index: 1001;
 }
+
+#gs-legend {
+    flex-shrink: 0;
+    display: flex; gap: 10px; padding: 4px 12px;
+    background: rgba(255,255,255,0.96); border-bottom: 1px solid #e2e8f0;
+    font-size: 11px; flex-wrap: wrap; z-index: 1000;
+}
+
+#gs-map { flex: 1; z-index: 1; }
 
 .gs-btn {
-    padding: 6px 14px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
-    transition: all 0.15s;
-    background: #334155;
-    color: #e2e8f0;
+    padding: 5px 12px; border: none; border-radius: 5px;
+    cursor: pointer; font-size: 12px; font-weight: 600;
+    background: #334155; color: #e2e8f0; transition: background 0.15s;
 }
+.gs-btn:hover:not(:disabled) { background: #475569; }
+.gs-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.gs-green { background: #16a34a; color: #fff; }
+.gs-green:hover:not(:disabled) { background: #15803d; }
+.gs-blue  { background: #0ea5e9; color: #fff; }
+.gs-blue:hover:not(:disabled)  { background: #0284c7; }
 
-.gs-btn:hover:not(:disabled) {
-    background: #475569;
-    transform: translateY(-1px);
-}
+.gs-status { color: #94a3b8; font-size: 11px; flex: 1; min-width: 100px; }
 
-.gs-btn:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-}
-
-.gs-btn-primary {
-    background: #0ea5e9;
-    color: #fff;
-}
-
-.gs-btn-primary:hover:not(:disabled) {
-    background: #0284c7;
-}
-
-.gs-btn-secondary {
-    background: #334155;
-    color: #94a3b8;
-}
-
-.gs-status {
-    color: #94a3b8;
-    font-size: 12px;
-    flex: 1;
-    min-width: 200px;
-}
-
-/* --- Spinner --- */
-.gs-spinner {
-    width: 16px;
-    height: 16px;
-    border: 2px solid #475569;
-    border-top-color: #0ea5e9;
-    border-radius: 50%;
-    animation: gs-spin 0.7s linear infinite;
-}
-
-@keyframes gs-spin {
-    to { transform: rotate(360deg); }
-}
-
-/* --- Stats bar --- */
-#gs-stats {
-    display: flex;
-    gap: 20px;
-    padding: 5px 14px;
-    background: #0f172a;
-    color: #94a3b8;
-    font-size: 12px;
-    flex-shrink: 0;
-}
-
-.gs-stat b {
-    color: #e2e8f0;
-}
-
-/* --- Legend --- */
-#gs-legend {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 5px 14px;
-    background: #fff;
-    border-bottom: 1px solid #e2e8f0;
-    font-size: 12px;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-}
-
-.leg {
-    font-weight: 700;
-}
-
-/* --- Map --- */
-#gs-map {
-    flex: 1;
-    min-height: 300px;
-    z-index: 0;
-}
-
-/* --- Markers --- */
 .gs-marker {
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 3px 6px;
-    border-radius: 4px;
-    white-space: nowrap;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-    cursor: pointer;
-    line-height: 1.4;
-    transition: transform 0.1s;
+    color: #fff; font-size: 11px; font-weight: 700;
+    padding: 3px 6px; border-radius: 4px; white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35); cursor: pointer;
 }
 
-.gs-marker:hover {
-    transform: scale(1.1);
-    z-index: 1000 !important;
-}
-
-.v-marker {
-    font-size: 20px;
-    line-height: 1;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
-    cursor: pointer;
-}
-
-.v-moving {
-    animation: pulse 1.5s ease-in-out infinite;
-}
-
-.v-stopped {
-    opacity: 0.75;
-}
-
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.15); }
-}
-
-/* --- Popup --- */
-.gs-popup {
-    min-width: 200px;
-    font-size: 13px;
-}
-
-.gs-popup-title {
-    font-weight: 700;
-    font-size: 14px;
-    margin-bottom: 4px;
-    color: #1e293b;
-}
-
-.gs-popup-addr {
-    color: #64748b;
-    font-size: 11px;
-    margin-bottom: 8px;
-    line-height: 1.4;
-}
-
-.gs-price-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 6px;
-}
-
-.gs-price-table tr {
-    border-bottom: 1px solid #f1f5f9;
-}
-
-.gs-price-table td {
-    padding: 3px 4px;
-    font-size: 12px;
-}
-
-.price-val {
-    font-weight: 700;
-    color: #0ea5e9;
-    text-align: right;
-}
-
-.gs-popup-horario {
-    font-size: 11px;
-    color: #64748b;
-    margin-top: 4px;
-}
-
-.gs-popup-fecha {
-    font-size: 10px;
-    color: #94a3b8;
-    margin-top: 2px;
-}
-
-/* --- CORS Warning --- */
-#gs-cors-warning {
-    margin: 12px;
-    padding: 12px 16px;
-    background: #fef3c7;
-    border: 1px solid #f59e0b;
-    border-radius: 6px;
-    font-size: 12px;
-    line-height: 1.7;
-    color: #78350f;
-}
-
-#gs-cors-warning code {
-    background: #fde68a;
-    padding: 1px 4px;
-    border-radius: 3px;
-    font-family: monospace;
-    font-size: 11px;
-}
-
-/* --- Footer --- */
-#gs-footer {
-    padding: 5px 14px;
-    background: #f1f5f9;
-    border-top: 1px solid #e2e8f0;
-    font-size: 11px;
-    color: #94a3b8;
-    flex-shrink: 0;
-}
-
-#gs-footer a {
-    color: #0ea5e9;
-    text-decoration: none;
-}
-
-/* --- Leaflet popup override --- */
-.leaflet-popup-content-wrapper {
-    border-radius: 8px !important;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
-}
-
-.leaflet-popup-content {
-    margin: 12px 14px !important;
-}
+.gs-popup { min-width: 200px; font-size: 13px; }
+.gs-popup b { font-size: 14px; display: block; margin-bottom: 4px; color: #1e293b; }
+.gs-popup small { color: #64748b; font-size: 11px; display: block; margin-bottom: 4px; }
+.gs-popup table { width: 100%; border-collapse: collapse; margin: 4px 0; }
+.gs-popup td { padding: 3px 4px; font-size: 12px; border-bottom: 1px solid #f1f5f9; }
+.gs-popup .pv { font-weight: 700; color: #0ea5e9; text-align: right; }
+.gs-horario { font-size: 11px; color: #64748b; margin-top: 4px; }
