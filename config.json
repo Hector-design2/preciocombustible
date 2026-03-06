@@ -1,30 +1,30 @@
 {
-  "name": "Gasolineras",
-  "supportEmail": "hector@empresa.com",
-  "version": "1.0.0",
-  "items": [
-    {
-      "page": "customPage",
-      "title": "Gasolineras",
-      "menuName": {
-        "en": "Gas Stations",
-        "es": "Gasolineras"
-      },
-      "noView": false,
-      "path": "Gasolineras/",
-      "html": "https://hector-design2.github.io/preciocombustible/index.html",
-      "dist": [
+    "name": "Gasolineras",
+    "supportEmail": "hector@empresa.com",
+    "version": "1.0.0",
+    "items": [
         {
-          "url": "https://hector-design2.github.io/preciocombustible/app.js"
+            "page": "customPage",
+            "title": "Gasolineras",
+            "menuName": {
+                "en": "Gas Stations",
+                "es": "Gasolineras"
+            },
+            "noView": false,
+            "path": "gasolineras/",
+            "html": "https://hector-design2.github.io/preciocombustible/index.html",
+            "dist": [
+                {
+                    "url": "https://hector-design2.github.io/preciocombustible/app.js"
+                }
+            ],
+            "css": [
+                {
+                    "url": "https://hector-design2.github.io/preciocombustible/app.css"
+                }
+            ],
+            "icon": "https://hector-design2.github.io/preciocombustible/icon.svg"
         }
-      ],
-      "css": [
-        {
-          "url": "https://hector-design2.github.io/preciocombustible/app.css"
-        }
-      ],
-      "icon": "https://hector-design2.github.io/preciocombustible/icon.svg"
-    }
-  ],
-  "isSigned": false
+    ],
+    "isSigned": false
 }
