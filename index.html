@@ -198,21 +198,14 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { width: 100%; height: 100%; overflow: hidden; }
-        body { font-family: sans-serif; font-size: 13px; position: relative; }
+        body { font-family: sans-serif; font-size: 13px; position: relative; background: #f8fafc; }
 
+        /* ── Toolbar ── */
         #toolbar {
-            position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
+            position: absolute; top: 0; left: 0; right: 0; z-index: 1001;
             display: flex; align-items: center; gap: 6px;
             padding: 6px 10px; background: #1e293b; flex-wrap: wrap;
         }
-        #legend {
-            position: absolute; top: 40px; left: 0; right: 0; z-index: 1000;
-            display: flex; gap: 10px; padding: 4px 12px;
-            background: rgba(255,255,255,0.95);
-            border-bottom: 1px solid #e2e8f0; font-size: 11px; flex-wrap: wrap;
-        }
-        #map { position: absolute; top: 64px; bottom: 0; left: 0; right: 0; z-index: 1; }
-
         .btn {
             padding: 5px 12px; border: none; border-radius: 5px;
             cursor: pointer; font-size: 12px; font-weight: 600;
@@ -221,26 +214,65 @@
         .btn:hover:not(:disabled) { background: #475569; }
         .btn:disabled { opacity: 0.45; cursor: not-allowed; }
         .btn-blue  { background: #0ea5e9; color: #fff; }
-        .btn-blue:hover:not(:disabled)  { background: #0284c7; }
+        .btn-blue:hover:not(:disabled) { background: #0284c7; }
         .btn-green { background: #16a34a; color: #fff; }
         .btn-green:hover:not(:disabled) { background: #15803d; }
+        #status { color: #94a3b8; font-size: 11px; flex: 1; min-width: 100px; }
 
-        #status { color: #94a3b8; font-size: 11px; flex: 1; min-width: 150px; }
+        /* ── Leyenda ── */
+        #legend {
+            position: absolute; top: 40px; left: 0; right: 0; z-index: 1000;
+            display: flex; gap: 10px; padding: 4px 12px;
+            background: rgba(255,255,255,0.96); border-bottom: 1px solid #e2e8f0;
+            font-size: 11px; flex-wrap: wrap;
+        }
 
-        /* Marcadores gasolineras */
+        /* ── Mapa ── */
+        #map { position: absolute; top: 64px; bottom: 0; left: 0; right: 0; z-index: 1; }
+
+        /* ── Panel de credenciales ── */
+        #panel-login {
+            position: absolute; top: 64px; left: 0; right: 0; bottom: 0;
+            z-index: 2000; background: rgba(15,23,42,0.85);
+            display: flex; align-items: center; justify-content: center;
+        }
+        #login-box {
+            background: #fff; border-radius: 10px; padding: 24px 28px;
+            width: 320px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        #login-box h3 { margin-bottom: 4px; color: #1e293b; font-size: 15px; }
+        #login-box p  { color: #64748b; font-size: 12px; margin-bottom: 16px; }
+        .field { margin-bottom: 10px; }
+        .field label { display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 3px; }
+        .field input {
+            width: 100%; padding: 7px 10px; border: 1px solid #cbd5e1;
+            border-radius: 5px; font-size: 13px; outline: none;
+        }
+        .field input:focus { border-color: #0ea5e9; }
+        #btn-login {
+            width: 100%; padding: 9px; background: #0ea5e9; color: #fff;
+            border: none; border-radius: 5px; font-size: 13px; font-weight: 600;
+            cursor: pointer; margin-top: 6px;
+        }
+        #btn-login:hover { background: #0284c7; }
+        #login-error { color: #dc2626; font-size: 11px; margin-top: 8px; display: none; }
+        #btn-cancelar {
+            width: 100%; padding: 7px; background: none; border: 1px solid #cbd5e1;
+            border-radius: 5px; font-size: 12px; color: #64748b; cursor: pointer; margin-top: 6px;
+        }
+
+        /* ── Marcadores ── */
         .gs-marker {
             color: #fff; font-size: 11px; font-weight: 700;
             padding: 3px 6px; border-radius: 4px; white-space: nowrap;
             box-shadow: 0 2px 6px rgba(0,0,0,0.35); cursor: pointer;
         }
-
-        /* Marcadores vehículos */
-        .v-marker { font-size: 22px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)); cursor: pointer; }
+        .v-marker { font-size: 22px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)); }
         .v-moving  { animation: pulse 1.5s ease-in-out infinite; }
         .v-stopped { opacity: 0.75; }
         @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.2)} }
 
-        /* Popups */
+        /* ── Popups ── */
         .gs-popup { min-width: 200px; font-size: 13px; }
         .gs-popup b { font-size: 14px; display: block; margin-bottom: 4px; color: #1e293b; }
         .gs-popup small { color: #64748b; font-size: 11px; display: block; margin-bottom: 6px; }
@@ -254,15 +286,11 @@
             display: none; padding: 10px; background: #fef3c7;
             border: 1px solid #f59e0b; border-radius: 6px; font-size: 12px;
         }
-        #api-warn {
-            position: absolute; bottom: 10px; right: 10px; z-index: 1000;
-            display: none; padding: 8px 12px; background: #fef9c3;
-            border: 1px solid #eab308; border-radius: 6px; font-size: 11px; max-width: 300px;
-        }
     </style>
 </head>
 <body>
 
+<!-- Toolbar -->
 <div id="toolbar">
     <button class="btn btn-green" id="btnVehiculos">🚛 Cargar Vehículos</button>
     <button class="btn btn-blue"  id="btnGas">⛽ Cargar Gasolineras</button>
@@ -270,73 +298,229 @@
     <span id="status">Listo. Carga vehículos y/o gasolineras.</span>
 </div>
 
+<!-- Leyenda -->
 <div id="legend">
     <span style="color:#16a34a">● &lt;1.38€</span>
-    <span style="color:#65a30d">● 1.38-1.48€</span>
-    <span style="color:#d97706">● 1.48-1.55€</span>
-    <span style="color:#ea580c">● 1.55-1.65€</span>
+    <span style="color:#65a30d">● 1.38–1.48€</span>
+    <span style="color:#d97706">● 1.48–1.55€</span>
+    <span style="color:#ea580c">● 1.55–1.65€</span>
     <span style="color:#dc2626">● &gt;1.65€</span>
-    <small>— Gasóleo A · Fuente: MITECO · actualización diaria</small>
+    <small>— Gasóleo A · Fuente: MITECO</small>
 </div>
 
+<!-- Mapa -->
 <div id="map"></div>
+
+<!-- Panel login Geotab -->
+<div id="panel-login" style="display:none;">
+    <div id="login-box">
+        <h3>🚛 Conectar con Geotab</h3>
+        <p>Introduce tus credenciales de MyGeotab para cargar los vehículos en tiempo real.</p>
+        <div class="field">
+            <label>Servidor</label>
+            <input type="text" id="inp-server" value="my.geotab.com" placeholder="my.geotab.com"/>
+        </div>
+        <div class="field">
+            <label>Base de datos</label>
+            <input type="text" id="inp-db" placeholder="nombre de tu base de datos"/>
+        </div>
+        <div class="field">
+            <label>Usuario (email)</label>
+            <input type="email" id="inp-user" placeholder="tu@email.com"/>
+        </div>
+        <div class="field">
+            <label>Contraseña</label>
+            <input type="password" id="inp-pass" placeholder="••••••••"/>
+        </div>
+        <button id="btn-login">Conectar y cargar vehículos</button>
+        <button id="btn-cancelar">Cancelar</button>
+        <div id="login-error">❌ Error: credenciales incorrectas o servidor no disponible.</div>
+    </div>
+</div>
 
 <div id="cors-warn">
     ⚠️ No se pudieron cargar las gasolineras. Comprueba que el proxy en Render está activo.
-</div>
-<div id="api-warn">
-    ⚠️ API de Geotab no disponible — los vehículos no se pueden cargar en esta vista.
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 
-// ─── CONFIG ───────────────────────────────────────────────
+// ── CONFIG ────────────────────────────────────────────────
 var PROXY_URL = "https://proxy-gasolineras.onrender.com/gasolineras";
 
-// ─── ESTADO ───────────────────────────────────────────────
+// ── ESTADO ───────────────────────────────────────────────
 var allStations    = null;
 var stationMarkers = [];
 var vehicleMarkers = [];
+var geotabCredentials = null; // { server, db, user, pass, token }
 
-// ─── MAPA ─────────────────────────────────────────────────
+// ── MAPA ─────────────────────────────────────────────────
 var map = L.map("map").setView([40.4168, -3.7038], 6);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "© OpenStreetMap | Precios: MITECO",
-    maxZoom: 18
+    attribution: "© OpenStreetMap | Precios: MITECO", maxZoom: 18
 }).addTo(map);
+map.on("moveend", function () { if (allStations) mostrarEnVista(); });
 
-map.on("moveend", function () {
-    if (allStations) mostrarEnVista();
-});
-
-// ─── UTILIDADES ───────────────────────────────────────────
+// ── UTILIDADES ───────────────────────────────────────────
 function parseES(s) {
     if (!s || s.trim() === "") return NaN;
     return parseFloat(s.replace(",", "."));
 }
-function formatP(v) {
-    return isNaN(v) ? "-" : v.toFixed(3) + " €/L";
-}
+function formatP(v) { return isNaN(v) ? "-" : v.toFixed(3) + " €/L"; }
 function colorDiesel(d) {
-    if (isNaN(d)) return "#94a3b8";
+    if (isNaN(d))   return "#94a3b8";
     if (d <= 1.38)  return "#16a34a";
     if (d <= 1.48)  return "#65a30d";
     if (d <= 1.55)  return "#d97706";
     if (d <= 1.65)  return "#ea580c";
     return "#dc2626";
 }
-function setStatus(msg) {
-    document.getElementById("status").textContent = msg;
+function setStatus(msg) { document.getElementById("status").textContent = msg; }
+
+// ── LLAMADA DIRECTA A API GEOTAB ─────────────────────────
+function geotabCall(method, params, onSuccess, onError) {
+    var c = geotabCredentials;
+    var url = "https://" + c.server + "/apiv1";
+    var body = JSON.stringify({
+        method: method,
+        params: Object.assign({}, params, {
+            credentials: { userName: c.user, password: c.pass, database: c.db }
+        })
+    });
+
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", url, true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState !== 4) return;
+        if (xhr.status === 200) {
+            var resp = JSON.parse(xhr.responseText);
+            if (resp.error) { onError(resp.error.message || "Error API"); return; }
+            onSuccess(resp.result);
+        } else {
+            onError("HTTP " + xhr.status);
+        }
+    };
+    xhr.onerror = function () { onError("Error de red"); };
+    xhr.send(body);
 }
 
-// ─── GASOLINERAS ──────────────────────────────────────────
+// ── AUTENTICAR EN GEOTAB ─────────────────────────────────
+function autenticar(server, db, user, pass, onSuccess, onError) {
+    var url = "https://" + server + "/apiv1";
+    var body = JSON.stringify({
+        method: "Authenticate",
+        params: { userName: user, password: pass, database: db }
+    });
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", url, true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState !== 4) return;
+        if (xhr.status === 200) {
+            var resp = JSON.parse(xhr.responseText);
+            if (resp.error) { onError(resp.error.message); return; }
+            onSuccess(resp.result);
+        } else {
+            onError("HTTP " + xhr.status);
+        }
+    };
+    xhr.onerror = function () { onError("Error de red"); };
+    xhr.send(body);
+}
+
+// ── CARGAR VEHÍCULOS ─────────────────────────────────────
+function cargarVehiculos() {
+    setStatus("⏳ Cargando posición de vehículos...");
+    document.getElementById("btnVehiculos").disabled = true;
+
+    geotabCall("Get", { typeName: "DeviceStatusInfo" }, function (statuses) {
+        vehicleMarkers.forEach(function (m) { map.removeLayer(m); });
+        vehicleMarkers = [];
+        var bounds = [];
+        var count = 0;
+
+        statuses.forEach(function (s) {
+            if (!s.latitude || !s.longitude) return;
+            var moving = s.isDeviceCommunicating;
+            var icon = L.divIcon({
+                className: "",
+                html: "<div class='v-marker " + (moving ? "v-moving" : "v-stopped") + "'>🚛</div>",
+                iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -15]
+            });
+            var nombre = (s.device && s.device.id) ? s.device.id : "Vehículo";
+            var popup =
+                "<div class='gs-popup'>" +
+                "<b>🚛 " + nombre + "</b>" +
+                "<small>📍 " + s.latitude.toFixed(5) + ", " + s.longitude.toFixed(5) + "</small>" +
+                "<small>Estado: " + (moving ? "🟢 En movimiento" : "🔴 Parado") + "</small>" +
+                "</div>";
+            var m = L.marker([s.latitude, s.longitude], { icon: icon }).bindPopup(popup);
+            m.addTo(map);
+            vehicleMarkers.push(m);
+            bounds.push([s.latitude, s.longitude]);
+            count++;
+        });
+
+        if (bounds.length > 0) map.fitBounds(bounds, { padding: [80, 80], maxZoom: 12 });
+        document.getElementById("btnVehiculos").disabled = false;
+        setStatus("🚛 " + count + " vehículos cargados.");
+
+    }, function (err) {
+        document.getElementById("btnVehiculos").disabled = false;
+        setStatus("❌ Error vehículos: " + err);
+    });
+}
+
+// ── PANEL LOGIN ──────────────────────────────────────────
+document.getElementById("btnVehiculos").addEventListener("click", function () {
+    if (geotabCredentials) {
+        cargarVehiculos();
+    } else {
+        document.getElementById("panel-login").style.display = "flex";
+        document.getElementById("login-error").style.display = "none";
+    }
+});
+
+document.getElementById("btn-cancelar").addEventListener("click", function () {
+    document.getElementById("panel-login").style.display = "none";
+});
+
+document.getElementById("btn-login").addEventListener("click", function () {
+    var server = document.getElementById("inp-server").value.trim();
+    var db     = document.getElementById("inp-db").value.trim();
+    var user   = document.getElementById("inp-user").value.trim();
+    var pass   = document.getElementById("inp-pass").value;
+
+    if (!server || !db || !user || !pass) {
+        document.getElementById("login-error").textContent = "❌ Rellena todos los campos.";
+        document.getElementById("login-error").style.display = "block";
+        return;
+    }
+
+    document.getElementById("btn-login").textContent = "Conectando...";
+    document.getElementById("btn-login").disabled = true;
+    document.getElementById("login-error").style.display = "none";
+
+    autenticar(server, db, user, pass, function (result) {
+        geotabCredentials = { server: server, db: db, user: user, pass: pass };
+        document.getElementById("panel-login").style.display = "none";
+        document.getElementById("btn-login").textContent = "Conectar y cargar vehículos";
+        document.getElementById("btn-login").disabled = false;
+        cargarVehiculos();
+    }, function (err) {
+        document.getElementById("login-error").textContent = "❌ " + err;
+        document.getElementById("login-error").style.display = "block";
+        document.getElementById("btn-login").textContent = "Conectar y cargar vehículos";
+        document.getElementById("btn-login").disabled = false;
+    });
+});
+
+// ── GASOLINERAS ──────────────────────────────────────────
 function mostrarEnVista() {
     stationMarkers.forEach(function (m) { map.removeLayer(m); });
     stationMarkers = [];
-
-    var b   = map.getBounds();
-    var MAX = 300;
+    var b = map.getBounds();
     var filtradas = [];
 
     allStations.forEach(function (s) {
@@ -344,12 +528,11 @@ function mostrarEnVista() {
         var lon = parseES(s["Longitud (WGS84)"]);
         if (isNaN(lat) || isNaN(lon)) return;
         if (!b.contains([lat, lon])) return;
-        s._lat  = lat;
-        s._lon  = lon;
-        s._d    = parseES(s["Precio Gasoleo A"]);
-        s._g95  = parseES(s["Precio Gasolina 95 E5"]);
-        s._g98  = parseES(s["Precio Gasolina 98 E5"]);
-        s._glp  = parseES(s["Precio Gases licuados del petróleo"]);
+        s._lat = lat; s._lon = lon;
+        s._d   = parseES(s["Precio Gasoleo A"]);
+        s._g95 = parseES(s["Precio Gasolina 95 E5"]);
+        s._g98 = parseES(s["Precio Gasolina 98 E5"]);
+        s._glp = parseES(s["Precio Gases licuados del petróleo"]);
         filtradas.push(s);
     });
 
@@ -360,45 +543,39 @@ function mostrarEnVista() {
         return a._d - b._d;
     });
 
-    filtradas.slice(0, MAX).forEach(function (s) {
-        var c     = colorDiesel(s._d);
+    filtradas.slice(0, 300).forEach(function (s) {
+        var c = colorDiesel(s._d);
         var label = isNaN(s._d) ? "?" : s._d.toFixed(3) + "€";
-
         var icon = L.divIcon({
             className: "",
             html: "<div class='gs-marker' style='background:" + c + "'>" + label + "</div>",
             iconSize: [68, 22], iconAnchor: [34, 11], popupAnchor: [0, -14]
         });
-
         var popup =
             "<div class='gs-popup'>" +
             "<b>⛽ " + (s["Rótulo"] || "Gasolinera") + "</b>" +
             "<small>📍 " + (s["Dirección"] || "") + ", " + (s["Municipio"] || "") + " (" + (s["Provincia"] || "") + ")</small>" +
             "<table>" +
-            (isNaN(s._d)   ? "" : "<tr><td>🔵 Gasóleo A</td><td class='pv'>"    + formatP(s._d)   + "</td></tr>") +
-            (isNaN(s._g95) ? "" : "<tr><td>🟢 Gasolina 95</td><td class='pv'>"  + formatP(s._g95) + "</td></tr>") +
-            (isNaN(s._g98) ? "" : "<tr><td>🟡 Gasolina 98</td><td class='pv'>"  + formatP(s._g98) + "</td></tr>") +
-            (isNaN(s._glp) ? "" : "<tr><td>🟣 GLP/Autogás</td><td class='pv'>"  + formatP(s._glp) + "</td></tr>") +
+            (isNaN(s._d)   ? "" : "<tr><td>🔵 Gasóleo A</td><td class='pv'>"   + formatP(s._d)   + "</td></tr>") +
+            (isNaN(s._g95) ? "" : "<tr><td>🟢 Gasolina 95</td><td class='pv'>" + formatP(s._g95) + "</td></tr>") +
+            (isNaN(s._g98) ? "" : "<tr><td>🟡 Gasolina 98</td><td class='pv'>" + formatP(s._g98) + "</td></tr>") +
+            (isNaN(s._glp) ? "" : "<tr><td>🟣 GLP</td><td class='pv'>"         + formatP(s._glp) + "</td></tr>") +
             "</table>" +
-            "<div class='horario'>🕐 " + (s["Horario"] || "Horario no disponible") + "</div>" +
+            "<div class='horario'>🕐 " + (s["Horario"] || "-") + "</div>" +
             "</div>";
-
         var m = L.marker([s._lat, s._lon], { icon: icon }).bindPopup(popup);
         m.addTo(map);
         stationMarkers.push(m);
     });
 
-    var extra = filtradas.length > MAX ? " (máx " + MAX + ", haz zoom)" : "";
-    setStatus("⛽ " + stationMarkers.length + " gasolineras en vista" + extra + " — 🚛 " + vehicleMarkers.length + " vehículos");
+    setStatus("⛽ " + stationMarkers.length + " gasolineras en vista · 🚛 " + vehicleMarkers.length + " vehículos");
 }
 
 document.getElementById("btnGas").addEventListener("click", function () {
     if (allStations) { mostrarEnVista(); return; }
-
     var btn = document.getElementById("btnGas");
     btn.disabled = true;
     setStatus("⏳ Descargando datos del Ministerio...");
-
     var xhr = new XMLHttpRequest();
     xhr.open("GET", PROXY_URL, true);
     xhr.onreadystatechange = function () {
@@ -424,109 +601,6 @@ document.getElementById("btnGas").addEventListener("click", function () {
 
 document.getElementById("btnRefresh").addEventListener("click", function () {
     if (allStations) mostrarEnVista();
-});
-
-// ─── VEHÍCULOS (API GEOTAB) ───────────────────────────────
-function cargarVehiculos(geotabApi) {
-    setStatus("⏳ Cargando posición de vehículos...");
-    document.getElementById("btnVehiculos").disabled = true;
-
-    geotabApi.call("Get", { typeName: "DeviceStatusInfo" }, function (statuses) {
-        vehicleMarkers.forEach(function (m) { map.removeLayer(m); });
-        vehicleMarkers = [];
-
-        var bounds = [];
-        var count  = 0;
-
-        statuses.forEach(function (s) {
-            if (!s.latitude || !s.longitude) return;
-
-            var moving = s.isDeviceCommunicating;
-            var icon   = L.divIcon({
-                className: "",
-                html: "<div class='v-marker " + (moving ? "v-moving" : "v-stopped") + "'>🚛</div>",
-                iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -15]
-            });
-
-            var nombre = (s.device && s.device.id) ? s.device.id : "Vehículo";
-            var popup  =
-                "<div class='gs-popup'>" +
-                "<b>🚛 " + nombre + "</b>" +
-                "<small>📍 " + s.latitude.toFixed(5) + ", " + s.longitude.toFixed(5) + "</small>" +
-                "<small>Estado: " + (moving ? "🟢 En movimiento" : "🔴 Parado") + "</small>" +
-                "</div>";
-
-            var m = L.marker([s.latitude, s.longitude], { icon: icon }).bindPopup(popup);
-            m.addTo(map);
-            vehicleMarkers.push(m);
-            bounds.push([s.latitude, s.longitude]);
-            count++;
-        });
-
-        if (bounds.length > 0) {
-            map.fitBounds(bounds, { padding: [80, 80], maxZoom: 12 });
-        }
-
-        document.getElementById("btnVehiculos").disabled = false;
-        setStatus("🚛 " + count + " vehículos cargados. Ahora puedes cargar gasolineras ⛽");
-
-    }, function (err) {
-        document.getElementById("btnVehiculos").disabled = false;
-        setStatus("❌ Error al cargar vehículos: " + (err.message || err));
-    });
-}
-
-// ─── OBTENER API DE GEOTAB ────────────────────────────────
-// MyGeotab inyecta el objeto "api" en el iframe de varias formas
-function obtenerApiGeotab(callback) {
-
-    // Intento 1: window.geotab.api (versiones recientes)
-    if (window.geotab && window.geotab.api) {
-        callback(window.geotab.api);
-        return;
-    }
-
-    // Intento 2: window.parent.geotab.api
-    try {
-        if (window.parent && window.parent.geotab && window.parent.geotab.api) {
-            callback(window.parent.geotab.api);
-            return;
-        }
-    } catch (e) {}
-
-    // Intento 3: esperar a que Geotab lo inyecte (hasta 5 segundos)
-    var intentos = 0;
-    var intervalo = setInterval(function () {
-        intentos++;
-        if (window.geotab && window.geotab.api) {
-            clearInterval(intervalo);
-            callback(window.geotab.api);
-            return;
-        }
-        try {
-            if (window.parent && window.parent.geotab && window.parent.geotab.api) {
-                clearInterval(intervalo);
-                callback(window.parent.geotab.api);
-                return;
-            }
-        } catch (e) {}
-        if (intentos >= 10) {
-            clearInterval(intervalo);
-            callback(null); // no disponible
-        }
-    }, 500);
-}
-
-document.getElementById("btnVehiculos").addEventListener("click", function () {
-    obtenerApiGeotab(function (geotabApi) {
-        if (!geotabApi) {
-            document.getElementById("api-warn").style.display = "block";
-            setStatus("⚠️ API de Geotab no disponible — no se pueden cargar vehículos");
-            document.getElementById("btnVehiculos").disabled = false;
-            return;
-        }
-        cargarVehiculos(geotabApi);
-    });
 });
 
 </script>
