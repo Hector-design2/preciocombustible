@@ -386,11 +386,12 @@ function setStatus(msg) { document.getElementById("status").textContent = msg; }
 function geotabCall(method, params, onSuccess, onError) {
     var c = geotabCredentials;
     var url = "https://" + c.server + "/apiv1";
+    var credentials = c.sessionId
+        ? { userName: c.user, sessionId: c.sessionId, database: c.db }
+        : { userName: c.user, password: c.pass, database: c.db };
     var body = JSON.stringify({
         method: method,
-        params: Object.assign({}, params, {
-            credentials: { userName: c.user, password: c.pass, database: c.db }
-        })
+        params: Object.assign({}, params, { credentials: credentials })
     });
 
     var xhr = new XMLHttpRequest();
