@@ -2,122 +2,130 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Geotab MITECO Add-In</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; background: #f0f2f5; }
-        #gs-main { display: flex; flex-direction: column; height: 100vh; width: 100%; }
-        #gs-bar { background: #1e293b; padding: 12px; display: flex; align-items: center; gap: 10px; z-index: 9999; }
-        #gs-map { flex: 1; width: 100%; height: 100%; min-height: 500px; }
-        .gb { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-family: sans-serif; }
+        /* Forzamos que el cuerpo no tenga scroll propio */
+        html, body { 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; 
+            font-family: sans-serif;
+        }
+        #gs-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh; /* Ocupa el 100% de la ventana */
+        }
+        #gs-bar {
+            background: #1e293b;
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-shrink: 0; /* Evita que la barra se encoja */
+        }
+        /* El mapa debe crecer para ocupar el resto */
+        #gs-map {
+            flex-grow: 1; 
+            width: 100%;
+            background: #cbd5e1; /* Color de fondo para saber si el div existe */
+        }
+        .gb { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .gg { background: #16a34a; color: white; }
         .gb2 { background: #0ea5e9; color: white; }
-        #gs-st { color: #cbd5e1; font-size: 12px; margin-left: auto; font-family: sans-serif; }
+        #gs-st { color: #94a3b8; font-size: 12px; margin-left: auto; }
     </style>
 </head>
 <body>
 
-<div id="gs-main">
+<div id="gs-container">
     <div id="gs-bar">
         <button class="gb gg" id="gs-bv">🚛 Vehículos</button>
         <button class="gb gb2" id="gs-bg">⛽ Gasolineras</button>
-        <span id="gs-st">Cargando sistema...</span>
+        <span id="gs-st">Iniciando mapa...</span>
     </div>
     <div id="gs-map"></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
 /**
- * RECUERDA: Este nombre debe coincidir con el que pongas en config.json
+ * LÓGICA REFORZADA PARA GEOTAB
  */
-var initAddIn = function (api, state) {
+var gasolinerasAddIn = function (api, state) {
     var map = null;
-    var PROXY = "https://proxy-gasolineras.onrender.com/gasolineras";
+
+    function initMap() {
+        if (map) return; // Evitar duplicados
+
+        // Inicializar el objeto mapa
+        map = L.map('gs-map').setView([40.41, -3.70], 6);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        // --- TRUCO CLAVE PARA GEOTAB ---
+        // Forzamos al mapa a recalcular su tamaño cada 300ms durante el primer segundo
+        // Esto soluciona el problema de la pantalla gris/blanca
+        var fixes = 0;
+        var interval = setInterval(function() {
+            map.invalidateSize();
+            fixes++;
+            if(fixes > 5) clearInterval(interval);
+        }, 300);
+        
+        document.getElementById("gs-st").textContent = "Mapa Cargado";
+    }
 
     return {
-        // Esta es la función que Geotab llama al cargar
         initialize: function (api, state, callback) {
-            console.log("Geotab Add-in Inicializando...");
-            
-            // 1. Verificar si Leaflet cargó correctamente
-            if (typeof L === 'undefined') {
-                document.getElementById("gs-st").textContent = "Error: Librería Leaflet no encontrada";
-                if(callback) callback();
-                return;
-            }
+            initMap();
 
-            // 2. Crear el mapa
-            if (!map) {
-                map = L.map('gs-map', {
-                    center: [40.41, -3.70],
-                    zoom: 6,
-                    zoomControl: true
-                });
+            // Configurar botones
+            document.getElementById("gs-bg").onclick = function() {
+                document.getElementById("gs-st").textContent = "Cargando datos...";
+                fetch("https://proxy-gasolineras.onrender.com/gasolineras")
+                    .then(r => r.json())
+                    .then(data => {
+                        var list = data.ListaEESSPrecio || [];
+                        list.slice(0, 50).forEach(s => {
+                            var lat = parseFloat(s.Latitud.replace(",", "."));
+                            var lon = parseFloat(s["Longitud (WGS84)"].replace(",", "."));
+                            L.marker([lat, lon]).addTo(map).bindPopup(s.Rótulo);
+                        });
+                        document.getElementById("gs-st").textContent = "Gasolineras OK";
+                    });
+            };
 
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap'
-                }).addTo(map);
-                
-                // Forzar re-dibujado para evitar gris en iframes
-                setTimeout(function(){ map.invalidateSize(); }, 500);
-            }
-
-            // 3. Eventos de botones
             document.getElementById("gs-bv").onclick = function() {
                 if(!api) return;
-                document.getElementById("gs-st").textContent = "Buscando...";
-                api.call("Get", { typeName: "DeviceStatusInfo" }, function(result) {
-                    var coords = [];
-                    result.forEach(function(d) {
-                        if(d.latitude && d.longitude) {
-                            L.marker([d.latitude, d.longitude], {
-                                icon: L.divIcon({html:'🚛', className:'', iconSize:[20,20]})
-                            }).addTo(map).bindPopup("Vehículo: " + d.device.id);
-                            coords.push([d.latitude, d.longitude]);
-                        }
+                api.call("Get", { typeName: "DeviceStatusInfo" }, function(res) {
+                    res.forEach(d => {
+                        if(d.latitude) L.marker([d.latitude, d.longitude]).addTo(map);
                     });
-                    if(coords.length > 0) map.fitBounds(coords);
-                    document.getElementById("gs-st").textContent = coords.length + " vehículos.";
+                    document.getElementById("gs-st").textContent = "Vehículos OK";
                 });
             };
 
-            document.getElementById("gs-bg").onclick = function() {
-                document.getElementById("gs-st").textContent = "Cargando MITECO...";
-                fetch(PROXY).then(r => r.json()).then(data => {
-                    var list = data.ListaEESSPrecio || [];
-                    list.slice(0, 50).forEach(function(s) {
-                        var lat = parseFloat(s.Latitud.replace(",", "."));
-                        var lon = parseFloat(s["Longitud (WGS84)"].replace(",", "."));
-                        L.marker([lat, lon]).addTo(map)
-                         .bindPopup("<b>"+s.Rótulo+"</b><br>"+s["Precio Gasoleo A"]+"€");
-                    });
-                    document.getElementById("gs-st").textContent = "Gasolineras OK";
-                });
-            };
-
-            document.getElementById("gs-st").textContent = "Listo para usar";
-            
-            // 4. AVISAR A GEOTAB QUE TODO OK
             if (callback) callback();
         },
         focus: function (api, state) {
-            if(map) map.invalidateSize();
+            if (map) map.invalidateSize(); // Refrescar al volver a la pestaña
         },
         blur: function () {}
     };
 };
 
-// Registro para Geotab
+// Registro
 if (typeof geotab !== "undefined") {
-    // IMPORTANTE: El nombre después de 'geotab.addin.' debe coincidir con el config.json
-    geotab.addin.gasolineras = initAddIn;
+    geotab.addin.gasolineras = gasolinerasAddIn;
 } else {
-    // Si entras por web normal
+    // Si entras por fuera de Geotab
     window.onload = function() {
-        var standalone = initAddIn(null, null);
-        standalone.initialize(null, null, null);
+        var test = gasolinerasAddIn(null, null);
+        test.initialize(null, null, null);
     };
 }
 </script>
